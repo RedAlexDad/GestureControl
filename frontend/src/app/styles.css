@@ -300,3 +300,10 @@ button:disabled {
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+/* Правая колонка: состояние сверху, словарь под ним. */
+.column {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}

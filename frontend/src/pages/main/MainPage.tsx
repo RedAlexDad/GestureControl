@@ -45,24 +45,21 @@ export function MainPage() {
 
       <section className="grid">
         <CameraPanel state={state} camera={camera} />
-        <EnginePanel
-          state={state}
-          metrics={bridge.metrics}
-          onTap={(index) => void bridge.tap(index)}
-        />
+        <div className="column">
+          <EnginePanel state={state} metrics={bridge.metrics} />
+          <LibraryPanel
+            signs={state.signs}
+            busy={bridge.busy}
+            recording={state.engine.recording}
+            onStart={(word, isDynamic) => void bridge.startRecording(word, isDynamic)}
+            onStop={() => void bridge.stopRecording()}
+            onCancel={() => void bridge.cancelRecording()}
+            onFinishPhrase={() => void bridge.finishPhrase()}
+            onDelete={(id) => void bridge.deleteSign(id)}
+            onClear={() => void bridge.clearSigns()}
+          />
+        </div>
       </section>
-
-      <LibraryPanel
-        signs={state.signs}
-        busy={bridge.busy}
-        recording={state.engine.recording}
-        onStart={(word, isDynamic) => void bridge.startRecording(word, isDynamic)}
-        onStop={() => void bridge.stopRecording()}
-        onCancel={() => void bridge.cancelRecording()}
-        onFinishPhrase={() => void bridge.finishPhrase()}
-        onDelete={(id) => void bridge.deleteSign(id)}
-        onClear={() => void bridge.clearSigns()}
-      />
     </main>
   )
 }

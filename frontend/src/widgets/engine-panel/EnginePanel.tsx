@@ -1,15 +1,13 @@
 import { recordingLabel, signLabel } from '@/entities/session'
-import { ScreenSelect } from '@/features/select-screen'
 import type { AppState, Metrics } from '@/shared/api/types'
 
 interface EnginePanelProps {
   state: AppState
   metrics: Metrics
-  onTap: (index: number) => void
 }
 
-/** Панель состояния: факты о жесте, экраны и счётчики кадров. */
-export function EnginePanel({ state, metrics, onTap }: EnginePanelProps) {
+/** Панель состояния: факты о жесте и счётчики кадров. */
+export function EnginePanel({ state, metrics }: EnginePanelProps) {
   const recording = recordingLabel(state.engine.recording)
 
   return (
@@ -29,9 +27,6 @@ export function EnginePanel({ state, metrics, onTap }: EnginePanelProps) {
         <dt>Параметр</dt>
         <dd>{state.engine.parameter.toFixed(2)}</dd>
       </dl>
-
-      <h3>Экраны</h3>
-      <ScreenSelect screens={state.screens} index={state.engine.screen_index} onTap={onTap} />
 
       <h3>Счётчики кадров</h3>
       <p className="muted">
