@@ -11,6 +11,7 @@
 mod palm;
 
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use gesture_core::{joint, Point, VisionError};
 use ort::session::Session;
@@ -60,6 +61,12 @@ pub struct DetectorConfig {
     pub max_hands: usize,
     /// Во сколько раз рамка ладони расширяется до кропа кисти.
     pub crop_scale: f32,
+    /// Постоянная времени сглаживания в секундах; ноль выключает его.
+    ///
+    /// Кадры детектор разбирает независимо, и точки дрожат на несколько
+    /// пикселей. Сглаживание тянет точки к прошлому положению, поэтому
+    /// скелет стоит ровно, а не дёргается.
+    pub smoothing: f32,
 }
 
 impl Default for DetectorConfig {
@@ -73,8 +80,20 @@ impl Default for DetectorConfig {
             // Кисть примерно вдвое длиннее ладони; кроп с запасом, чтобы
             // в него поместились и запястье, и кончики пальцев.
             crop_scale: 2.8,
+            // Восемьдесят миллисекунд: заметно гасит дрожь, но рука при
+            // движении не отстаёт.
+            smoothing: 0.08,
         }
     }
+}
+
+/// След кисти: сглаженные между кадрами кроп и точки.
+#[derive(Debug, Clone)]
+struct Track {
+    center: (f32, f32),
+    side: f32,
+    down: (f32, f32),
+    points: Vec<Point>,
 }
 
 /// Детектор кистей на двух ONNX-моделях.
@@ -85,6 +104,8 @@ pub struct OnnxHandDetector {
     landmark_input: String,
     anchors: Vec<(f32, f32)>,
     config: DetectorConfig,
+    tracks: Vec<Track>,
+    last_seen: Option<Instant>,
 }
 
 impl std::fmt::Debug for OnnxHandDetector {
@@ -112,6 +133,8 @@ impl OnnxHandDetector {
             landmark_input,
             anchors: palm::anchors(),
             config,
+            tracks: Vec::new(),
+            last_seen: None,
         })
     }
 
@@ -136,16 +159,71 @@ impl OnnxHandDetector {
 
         let crop_scale = self.config.crop_scale;
         let min_side = frame.width.min(frame.height) as f32;
-        let mut hands = Vec::with_capacity(detections.len());
+
+        // Доля нового в сглаженном значении. Зависит от времени между
+        // кадрами: при редких кадрах новому доверяем сильнее, иначе скелет
+        // отставал бы от руки.
+        let now = Instant::now();
+        let alpha = match self.last_seen {
+            Some(previous) if self.config.smoothing > 0.0 => {
+                let dt = now.duration_since(previous).as_secs_f32();
+                (1.0 - (-dt / self.config.smoothing).exp()).clamp(0.0, 1.0)
+            }
+            _ => 1.0,
+        };
+        self.last_seen = Some(now);
+
+        let mut used = vec![false; self.tracks.len()];
+        let mut tracks = Vec::with_capacity(self.tracks.len());
+        let mut hands = Vec::with_capacity(self.tracks.len());
+
         for detection in detections {
             // Слишком мелкая рамка — не кисть, а шум детектора.
             if detection.size.0.max(detection.size.1) * min_side < MIN_PALM_PX {
                 continue;
             }
-            let crop = palm_crop(&detection, frame, crop_scale);
+            let raw = palm_crop(&detection, frame, crop_scale);
+
+            // Ближайший след даёт прошлые точки. Кисть показываем только
+            // по свежему кадру: след сглаживает, а не удерживает
+            // исчезнувшую руку.
+            let mut matched: Option<usize> = None;
+            let mut best = f32::INFINITY;
+            for (index, track) in self.tracks.iter().enumerate() {
+                if used[index] {
+                    continue;
+                }
+                let distance = dist2(raw.center, track.center);
+                if distance < best {
+                    best = distance;
+                    matched = Some(index);
+                }
+            }
+            let (crop, previous) = match matched {
+                Some(index) if best.sqrt() <= raw.side * 0.6 && alpha < 1.0 => {
+                    used[index] = true;
+                    let track = &self.tracks[index];
+                    (blend_crop(track, &raw, alpha), Some(track.points.clone()))
+                }
+                _ => (raw, None),
+            };
+
             let landmarks = self.run_landmark(sample_crop(frame, &crop, INPUT_SIZE))?;
-            hands.push(landmarks_to_hand(&landmarks, &crop, detection.score));
+            let hand = landmarks_to_hand(&landmarks, &crop, detection.score);
+            let points = match previous {
+                Some(previous) => blend_points(&previous, &hand.points, alpha),
+                None => hand.points.clone(),
+            };
+            tracks.push(Track {
+                center: crop.center,
+                side: crop.side,
+                down: crop.down,
+                points: points.clone(),
+            });
+            hands.push(HandLandmarks::new(points, detection.score));
         }
+
+        self.tracks = tracks;
         Ok(hands)
     }
 
@@ -293,6 +371,54 @@ fn keypoint(detection: &Detection, index: usize, width: f32, height: f32) -> (f3
         detection.keypoints[index].0 * width,
         detection.keypoints[index].1 * height,
     )
+}
+
+/// Квадрат расстояния между точками: сравнениям корень не нужен.
+fn dist2(a: (f32, f32), b: (f32, f32)) -> f32 {
+    let dx = a.0 - b.0;
+    let dy = a.1 - b.1;
+    dx * dx + dy * dy
+}
+
+/// Смешивает свежий кроп с прошлым следом.
+fn blend_crop(track: &Track, raw: &Crop, alpha: f32) -> Crop {
+    let down = normalize((
+        track.down.0 + (raw.down.0 - track.down.0) * alpha,
+        track.down.1 + (raw.down.1 - track.down.1) * alpha,
+    ));
+    Crop {
+        center: (
+            track.center.0 + (raw.center.0 - track.center.0) * alpha,
+            track.center.1 + (raw.center.1 - track.center.1) * alpha,
+        ),
+        side: track.side + (raw.side - track.side) * alpha,
+        right: (down.1, -down.0),
+        down,
+    }
+}
+
+/// Приводит вектор к единичной длине.
+fn normalize(v: (f32, f32)) -> (f32, f32) {
+    let len = (v.0 * v.0 + v.1 * v.1).sqrt();
+    if len > 1e-6 {
+        (v.0 / len, v.1 / len)
+    } else {
+        (0.0, 1.0)
+    }
+}
+
+/// Смешивает точки текущего кадра с прошлыми.
+fn blend_points(previous: &[Point], next: &[Point], alpha: f32) -> Vec<Point> {
+    next.iter()
+        .enumerate()
+        .map(|(index, point)| match previous.get(index) {
+            Some(old) => Point::new(
+                old.x + (point.x - old.x) * alpha,
+                old.y + (point.y - old.y) * alpha,
+            ),
+            None => *point,
+        })
+        .collect()
 }
 
 /// Переводит ключевые точки модели в пиксели кадра.
@@ -478,5 +604,39 @@ mod tests {
             crop.right.0
         );
         assert!(crop.right.1.abs() < 1e-6, "right.y = {}", crop.right.1);
+    }
+
+    #[test]
+    fn blend_points_moves_fraction_toward_new() {
+        let previous = vec![Point::new(0.0, 0.0), Point::new(10.0, 10.0)];
+        let next = vec![Point::new(10.0, 0.0), Point::new(10.0, 20.0)];
+        let blended = blend_points(&previous, &next, 0.5);
+        assert!((blended[0].x - 5.0).abs() < 1e-6, "x = {}", blended[0].x);
+        assert!(blended[0].y.abs() < 1e-6, "y = {}", blended[0].y);
+        assert!((blended[1].y - 15.0).abs() < 1e-6, "y = {}", blended[1].y);
+    }
+
+    #[test]
+    fn blend_crop_keeps_unit_axis() {
+        let track = Track {
+            center: (0.0, 0.0),
+            side: 100.0,
+            down: (0.0, 1.0),
+            points: Vec::new(),
+        };
+        let raw = Crop {
+            center: (10.0, 10.0),
+            side: 200.0,
+            right: (1.0, 0.0),
+            down: (1.0, 1.0),
+        };
+        let blended = blend_crop(&track, &raw, 0.5);
+        let len = (blended.down.0.powi(2) + blended.down.1.powi(2)).sqrt();
+        assert!((len - 1.0).abs() < 1e-5, "длина оси = {len}");
+        assert!(
+            (blended.side - 150.0).abs() < 1e-6,
+            "side = {}",
+            blended.side
+        );
     }
 }
