@@ -69,7 +69,7 @@ export function finishPhrase(): Promise<BridgeResult> {
 
 /** Начинает запись жеста для слова. */
 export function startRecording(word: string, isDynamic: boolean): Promise<AppState> {
-  return invoke<AppState>('start_recording', { request: { word, isDynamic } })
+  return invoke<AppState>('start_recording', { request: { word, is_dynamic: isDynamic } })
 }
 
 /** Отменяет запись, если она идёт. */
@@ -145,4 +145,19 @@ export function errorText(error: unknown): string {
     if (typeof message === 'string') return message
   }
   return 'неизвестная ошибка'
+}
+
+/**
+ * Текст ошибки для показа и для журнала окна.
+ *
+ * Tauri разбирает аргументы команды до входа в обработчик, поэтому отказ
+ * вида `missing field` не доходит до кода окна и в журнале не виден: его
+ * знает только интерфейс. Пересылаем текст отдельной командой, иначе
+ * опечатка в имени поля молча остаётся только в подсказке на экране.
+ */
+export function reportError(error: unknown): string {
+  const text = errorText(error)
+  console.error(`команда окна отказала: ${text}`)
+  invoke('log_client_error', { message: text }).catch(() => undefined)
+  return text
 }

@@ -54,7 +54,7 @@ export function useBridge(): Bridge {
         setMetrics(answer.metrics)
       })
       .catch((error: unknown) => {
-        if (alive) setNotice(ipc.errorText(error))
+        if (alive) setNotice(ipc.reportError(error))
       })
 
     const unlisten = ipc.onState((result) => {
@@ -82,7 +82,7 @@ export function useBridge(): Bridge {
         if (answer.state) setState(answer.state)
         setNotice(null)
       } catch (error: unknown) {
-        setNotice(ipc.errorText(error))
+        setNotice(ipc.reportError(error))
       } finally {
         setBusy(false)
       }
@@ -105,7 +105,7 @@ export function useBridge(): Bridge {
         setState(result.state)
         setNotice(result.stale ? 'кадр устарел и был отброшен' : null)
       } catch (error: unknown) {
-        setNotice(ipc.errorText(error))
+        setNotice(ipc.reportError(error))
         return
       }
     }

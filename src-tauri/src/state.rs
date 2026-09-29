@@ -108,3 +108,12 @@ impl std::fmt::Display for CommandError {
 }
 
 impl std::error::Error for CommandError {}
+
+/// Превращает отказ в ошибку команды и пишет его в журнал окна.
+///
+/// Без этой записи отказ жил только в подсказке интерфейса: по журналу
+/// приложение выглядело исправным, хотя команда не сработала.
+pub fn failure<T, E: std::fmt::Display>(command: &str, error: E) -> Result<T, CommandError> {
+    tracing::warn!("команда {command} отказала: {error}");
+    Err(CommandError::new(error))
+}

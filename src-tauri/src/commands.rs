@@ -7,13 +7,16 @@
 //! Имена полей на проводе совпадают с именами в Rust: мост сериализует
 //! как есть, без `rename_all`. Один согласованный вид на весь IPC
 //! позволяет сверять контракт с исходниками глазами, а не по памяти.
+//! Нарушение правила не тихо: Tauri отклоняет такой вызов до входа в
+//! обработчик, а интерфейс пересылает отказ в журнал командой
+//! `log_client_error`.
 
 use gesture_bridge::{AppMode, AppState, BridgeResult, FrameInput};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
 use crate::config::Settings;
-use crate::state::{publish, AppStateInner, CommandError};
+use crate::state::{failure, publish, AppStateInner, CommandError};
 
 /// Состояние приложения, которым владеет Tauri.
 pub type Shared<'a> = State<'a, AppStateInner>;
@@ -146,7 +149,7 @@ pub fn finish_phrase(app: Shared<'_>) -> BridgeResult {
 pub fn start_recording(app: Shared<'_>, request: StartRecording) -> Result<AppState, CommandError> {
     let word = request.word.trim();
     if word.is_empty() {
-        return Err(CommandError::new("для записи нужно слово"));
+        return failure("start_recording", "для записи нужно слово");
     }
     Ok(app.with_bridge(|bridge| bridge.start_recording(word, request.is_dynamic)))
 }
@@ -166,8 +169,10 @@ pub fn delete_sign(app: Shared<'_>, request: DeleteSign) -> AppState {
 /// Очищает словарь целиком и сохраняет пустоту на диск.
 #[tauri::command]
 pub fn clear_signs(app: Shared<'_>) -> Result<AppState, CommandError> {
-    app.with_bridge(|bridge| bridge.clear_signs())
-        .map_err(CommandError::new)
+    match app.with_bridge(|bridge| bridge.clear_signs()) {
+        Ok(state) => Ok(state),
+        Err(error) => failure("clear_signs", error),
+    }
 }
 
 /// Принимает кадр с 21 точкой на кисть.
@@ -192,4 +197,14 @@ pub fn get_metrics(app: Shared<'_>) -> Metrics {
 #[tauri::command]
 pub fn now(app: Shared<'_>) -> f32 {
     app.with_bridge(|bridge| bridge.now())
+}
+
+/// Принимает отказ интерфейса и пишет его в журнал окна.
+///
+/// Tauri разбирает аргументы команды до входа в обработчик, поэтому отказ
+/// вида `missing field` не доходит до кода окна и в журнале не виден.
+/// Интерфейс пересылает такой текст сюда.
+#[tauri::command]
+pub fn log_client_error(message: String) {
+    tracing::warn!("интерфейс: {message}");
 }

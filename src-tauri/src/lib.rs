@@ -74,6 +74,7 @@ pub fn run() {
             commands::get_metrics,
             commands::get_settings,
             commands::now,
+            commands::log_client_error,
             camera::start_camera,
             camera::stop_camera,
             camera::camera_status,

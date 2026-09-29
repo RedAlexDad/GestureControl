@@ -113,7 +113,7 @@ export function useCamera(): Camera {
       if (answer.frame) draw(answer.frame)
       if (answer.status.error) setNotice(answer.status.error)
     } catch (error: unknown) {
-      setNotice(ipc.errorText(error))
+      setNotice(ipc.reportError(error))
     } finally {
       polling.current = false
     }
@@ -136,7 +136,7 @@ export function useCamera(): Camera {
       stopLoop()
       timer.current = window.setInterval(() => void poll(), POLL_MS)
     } catch (error: unknown) {
-      setNotice(ipc.errorText(error))
+      setNotice(ipc.reportError(error))
     } finally {
       setBusy(false)
     }
@@ -153,7 +153,7 @@ export function useCamera(): Camera {
       canvas.current?.getContext('2d')?.clearRect(0, 0, 100_000, 100_000)
       image.current = null
     } catch (error: unknown) {
-      setNotice(ipc.errorText(error))
+      setNotice(ipc.reportError(error))
     } finally {
       setBusy(false)
     }
@@ -174,7 +174,7 @@ export function useCamera(): Camera {
         }
       })
       .catch((error: unknown) => {
-        if (alive) setNotice(ipc.errorText(error))
+        if (alive) setNotice(ipc.reportError(error))
       })
     // Настройки нужны для показа и для запроса на включение. Их сбой не
     // должен мешать камере: окно подставит умолчания и без них.
@@ -184,7 +184,7 @@ export function useCamera(): Camera {
         if (alive) setSettings(answer)
       })
       .catch((error: unknown) => {
-        if (alive) setNotice(ipc.errorText(error))
+        if (alive) setNotice(ipc.reportError(error))
       })
     return () => {
       alive = false
