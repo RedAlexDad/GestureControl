@@ -19,8 +19,8 @@ function recordingLabel(recording: RecordingState): string | null {
   return `запись ${Math.round(recording.value * 100)}%`
 }
 
-/** Скелет кистей на кадре: пропущенные точки не рисуем. */
-function Hands({ state }: { state: AppState }) {
+/** Скелет кистей поверх кадра: пропущенные точки не рисуем. */
+function Hands({ state, width, height }: { state: AppState; width: number; height: number }) {
   const paths = useMemo(
     () =>
       state.engine.hands.map((hand, index) => ({
@@ -43,8 +43,13 @@ function Hands({ state }: { state: AppState }) {
   )
 
   return (
-    <svg className="stage" viewBox="0 0 640 480" role="img" aria-label="Скелет демонстрационного жеста">
-      <rect className="stage__back" width="640" height="480" />
+    <svg
+      className="preview__skeleton"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Скелет кисти поверх кадра"
+    >
       {paths.map(({ index, bones, tips, points }) => (
         <g key={index} className="skeleton">
           {bones.map(({ key, from, to }) => (
@@ -130,6 +135,11 @@ export default function App() {
           <h2>Кадр</h2>
           <div className="preview">
             <canvas ref={camera.canvasRef} className="preview__canvas" width={640} height={480} />
+            <Hands
+              state={state}
+              width={camera.settings?.preview.width ?? 640}
+              height={camera.settings?.preview.height ?? 480}
+            />
             {!camera.status.running && <span className="preview__hint">камера выключена</span>}
           </div>
           <div className="row">
@@ -161,17 +171,10 @@ export default function App() {
               </button>
             </p>
           )}
-          {state.engine.hands_visible > 0 && (
-            <>
-              <h3>Скелет кисти</h3>
-              <Hands state={state} />
-            </>
-          )}
           <p className="muted">
             Кистей в кадре: {state.engine.hands_visible}. Точки приходят с камеры через
-            детектор: скелет выше повторяет настоящие кисти. Распознавание работает, когда
-            кисть видна целиком. Ладонь — это жест паузы, поэтому после неё распознавание
-            выключается.
+            детектор, скелет рисуется поверх кадра. Распознавание работает, когда кисть видна
+            целиком. Ладонь — это жест паузы, поэтому после неё распознавание выключается.
           </p>
         </div>
 

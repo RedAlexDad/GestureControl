@@ -82,17 +82,22 @@ h3 {
   color: var(--muted);
 }
 
-.stage {
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #0d0f12;
-}
-
 .preview {
   position: relative;
   margin-bottom: 8px;
+}
+
+/*
+ * Скелет ложится ровно на канвас: оба блока одного размера, поэтому точки
+ * кадра совпадают с пикселями. `preserveAspectRatio="none"` растягивает
+ * SVG вместе с картинкой, если размер кадра отличается от разметки.
+ */
+.preview__skeleton {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
 .preview__canvas {
@@ -117,10 +122,6 @@ h3 {
   color: var(--muted);
   font-size: 0.85rem;
   pointer-events: none;
-}
-
-.stage__back {
-  fill: #0d0f12;
 }
 
 .skeleton line {
