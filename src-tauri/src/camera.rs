@@ -11,6 +11,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
 
 use gesture_vision::{CameraConfig, FfmpegCamera, FrameSource, RgbFrame};
 use serde::{Deserialize, Serialize};
@@ -173,13 +174,24 @@ impl CameraState {
         }
         if let Err(error) = config.validated() {
             drop(slot);
+            tracing::error!("запрос камеры отклонён: {error}");
             self.set_stopped(&device, error.to_string());
             return self.status();
         }
+        tracing::info!(
+            "захват камеры: {}, {}x{} @ {} fps -> превью {}x{}",
+            config.device.display(),
+            config.size.0,
+            config.size.1,
+            config.fps,
+            PREVIEW.0,
+            PREVIEW.1,
+        );
         let mut camera = match FfmpegCamera::start(config) {
             Ok(camera) => camera,
             Err(error) => {
                 drop(slot);
+                tracing::error!("камера не запустилась: {error}");
                 self.set_stopped(&device, error.to_string());
                 return self.status();
             }
@@ -229,6 +241,12 @@ impl CameraState {
                 // камеры гасит ffmpeg. Поэтому ждать безопасно: кадр
                 // читается блоками, а не держится вечно.
                 let _ = session.worker.join();
+                tracing::info!(
+                    "захват камеры остановлен по команде, принято {} кадров",
+                    session.frames.load(Ordering::Relaxed)
+                );
+            } else {
+                tracing::debug!("команда остановки камеры: захвата не было");
             }
             self.clear_preview();
             self.lock(&self.status).device.clone()
@@ -321,6 +339,44 @@ impl CameraState {
     }
 }
 
+/// Считает реальную частоту кадров по стенным часам.
+///
+/// Запрошенная у ffmpeg частота и фактическая — разные числа: фильтр fps
+/// умеет только дублировать и выбрасывать кадры, но не ускоряет камеру.
+/// Поэтому единственный честный ответ на «сколько кадров в секунду» даёт
+/// счётчик, а не конфигурация.
+struct Measurement {
+    since: Instant,
+    last_total: u64,
+    fps: f64,
+}
+
+impl Measurement {
+    fn start() -> Self {
+        Measurement {
+            since: Instant::now(),
+            last_total: 0,
+            fps: 0.0,
+        }
+    }
+
+    /// Отмечает кадр; раз в секунду пересчитывает частоту.
+    fn tick(&mut self, total: u64) -> Option<Duration> {
+        let elapsed = self.since.elapsed();
+        if elapsed < Duration::from_secs(1) {
+            return None;
+        }
+        let counted = total.saturating_sub(self.last_total) as f64;
+        self.last_total = total;
+        self.fps = counted / elapsed.as_secs_f64();
+        Some(elapsed)
+    }
+
+    fn fps(&self) -> f64 {
+        self.fps
+    }
+}
+
 /// Читает кадры, пока не попросят остановиться.
 fn capture_loop(
     camera: &mut FfmpegCamera,
@@ -330,10 +386,22 @@ fn capture_loop(
     error: Arc<Mutex<Option<String>>>,
     preview: Preview,
 ) {
+    let mut measured = Measurement::start();
     while !stop.load(Ordering::Relaxed) {
         match camera.next_frame() {
             Ok(frame) => {
-                frames.fetch_add(1, Ordering::Relaxed);
+                let total = frames.fetch_add(1, Ordering::Relaxed) + 1;
+                if measured.tick(total).is_some() {
+                    tracing::info!(
+                        "захват: {} кадров, {:.1} fps, {}x{} -> превью {}x{}",
+                        total,
+                        measured.fps(),
+                        frame.width,
+                        frame.height,
+                        PREVIEW.0,
+                        PREVIEW.1,
+                    );
+                }
                 if let Ok(mut slot) = preview.frame.lock() {
                     // Меньшая копия вместо полного кадра: превью не нуждается
                     // в пикселях, а держать их в памяти между кадрами незачем.
@@ -531,6 +599,37 @@ mod tests {
             assert!(!status.running);
             assert!(status.device.is_empty());
             assert_eq!(status.frames, 0);
+        });
+    }
+
+    #[test]
+    fn measurement_stays_quiet_before_a_second() {
+        within("measurement_stays_quiet_before_a_second", || {
+            let mut measured = Measurement::start();
+            // Помечаем кадры быстрее, чем идёт секунда: пересчёта быть не должно,
+            // иначе частота считалась бы по времени от запуска, а не между кадрами.
+            for total in 1..=5u64 {
+                assert!(measured.tick(total).is_none());
+            }
+            assert_eq!(measured.fps(), 0.0);
+        });
+    }
+
+    #[test]
+    fn measurement_reports_frames_per_second() {
+        within("measurement_reports_frames_per_second", || {
+            let mut measured = Measurement::start();
+            // Ждём заведомо больше секунды, чтобы результат не зависел от того,
+            // сколько кадров успела прочитать машина.
+            std::thread::sleep(Duration::from_millis(1100));
+            let elapsed = measured.tick(30).expect("секунда прошла");
+            assert!(elapsed >= Duration::from_secs(1));
+            // 30 кадров за ~1.1 с — это примерно 27 fps. Диапазон широкий
+            // намеренно: точное число зависит от планировщика, а вот порядок
+            // величины и явный ноль отличают работающий счётчик от заглушки.
+            let fps = measured.fps();
+            assert!(fps > 15.0, "частота неправдоподобно низкая: {fps}");
+            assert!(fps < 45.0, "частота неправдоподобно высокая: {fps}");
         });
     }
 

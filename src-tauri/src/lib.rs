@@ -28,10 +28,13 @@ const LIBRARY_FILE: &str = "signs.json";
 /// Собирает и запускает окно приложения.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Директивы EnvFilter: сначала уровень для своего кода, потом глобальный
+    // для зависимостей. Прежняя строка "gesture_control_lib=info,warn" читалась
+    // как цель с именем warn, а не как глобальный уровень, и глушила вывод.
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "gesture_control_lib=info,warn".into()),
+                .unwrap_or_else(|_| "warn,gesture_control_lib=info".into()),
         )
         .init();
 

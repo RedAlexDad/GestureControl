@@ -15,10 +15,15 @@ help:
 # Определяется при разборе файла, чтобы видеть результат make.
 TAURI := $(if $(wildcard $(TAURI_BIN)),$(TAURI_BIN),cd $(ROOT)/frontend && npx --no-install tauri)
 
+# Уровень логов для dev. Свой код виден на info, шум зависимостей — на warn.
+# Переопределяется из окружения: make dev DEV_LOG=gesture_control_lib=debug
+DEV_LOG ?= gesture_control_lib=info,warn
+
 dev:
 	$(call banner,Dev с горячей перезагрузкой)
 	$(call warn,нужен DISPLAY: окно откроется на этом компьютере)
-	$(call step,cd $(ROOT) && $(TAURI) dev,tauri dev — Rust и фронтенд пересобираются сами)
+	$(call info,RUST_LOG=$(DEV_LOG) — логи приложения идут в этот терминал)
+	$(call step,cd $(ROOT) && RUST_LOG=$(DEV_LOG) $(TAURI) dev,tauri dev — Rust и фронтенд пересобираются сами)
 
 release:
 	$(call banner,Релизная сборка)

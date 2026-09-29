@@ -66,6 +66,11 @@ define warn
 	@printf '$(BOLD)$(YELLOW)⚠$(RESET) $(1)\n'
 endef
 
+# info <текст>
+define info
+	@printf '$(BOLD)$(CYAN)›$(RESET) $(DIM)$(1)$(RESET)\n'
+endef
+
 # fail <текст>
 define fail
 	@printf '$(BOLD)$(RED)✗$(RESET) $(1)\n' >&2; exit 1
