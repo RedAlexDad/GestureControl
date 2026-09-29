@@ -361,6 +361,10 @@ impl Measurement {
     }
 
     /// Отмечает кадр; раз в секунду пересчитывает частоту.
+    ///
+    /// Отсчёт начинается заново на каждом пересчёте: иначе `elapsed` копится
+    /// и частота делится на всё время с начала захвата, из-за чего значение
+    /// неуклонно падает вместо ровного.
     fn tick(&mut self, total: u64) -> Option<Duration> {
         let elapsed = self.since.elapsed();
         if elapsed < Duration::from_secs(1) {
@@ -368,6 +372,7 @@ impl Measurement {
         }
         let counted = total.saturating_sub(self.last_total) as f64;
         self.last_total = total;
+        self.since = Instant::now();
         self.fps = counted / elapsed.as_secs_f64();
         Some(elapsed)
     }
@@ -630,6 +635,31 @@ mod tests {
             let fps = measured.fps();
             assert!(fps > 15.0, "частота неправдоподобно низкая: {fps}");
             assert!(fps < 45.0, "частота неправдоподобно высокая: {fps}");
+        });
+    }
+
+    #[test]
+    fn measurement_stays_flat_across_seconds() {
+        within("measurement_stays_flat_across_seconds", || {
+            let mut measured = Measurement::start();
+            // Две полные секунды подряд: если отсчёт не начинается заново,
+            // вторая частота получится в разы ниже первой, потому что
+            // знаменатель растёт вместе с временем захвата.
+            std::thread::sleep(Duration::from_millis(1050));
+            measured.tick(30).expect("первая секунда прошла");
+            let first = measured.fps();
+
+            std::thread::sleep(Duration::from_millis(1050));
+            measured.tick(60).expect("вторая секунда прошла");
+            let second = measured.fps();
+
+            // Окно широкое намеренно: счёт зависит от планировщика, а важен
+            // сам факт, что вторая секунда не провалилась в ноль.
+            assert!(first > 15.0, "первая частота слишком низкая: {first}");
+            assert!(
+                second > 15.0,
+                "частота затухает со временем: было {first}, стало {second}"
+            );
         });
     }
 
