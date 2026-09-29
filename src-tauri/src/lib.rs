@@ -7,13 +7,19 @@
 //! Кадры приходят командой `push_frame`. Пока не выбран слой зрения на
 //! Rust, источником точек выступает сам интерфейс; будущий детектор
 //! подключится к той же команде и не затронет остальной код.
+//!
+//! Камера живёт отдельно: она только копит кадры для превью, потому что
+//! модель распознавания ещё не выбрана и превращать пиксели в точки пока
+//! некому.
 
+pub mod camera;
 pub mod commands;
 pub mod state;
 
 use gesture_bridge::GestureBridge;
 use tauri::Manager;
 
+use crate::camera::CameraState;
 use crate::state::AppStateInner;
 
 /// Имя файла пользовательского словаря в каталоге данных приложения.
@@ -39,6 +45,9 @@ pub fn run() {
                 tracing::error!("мост пережил панику: состояние может быть неполным");
             }
             app.manage(state);
+            // Камера выключена при старте: устройство занимается только
+            // после явной команды, чтобы окно не держало его открытым.
+            app.manage(CameraState::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -56,6 +65,10 @@ pub fn run() {
             commands::push_frame,
             commands::get_metrics,
             commands::now,
+            camera::start_camera,
+            camera::stop_camera,
+            camera::camera_status,
+            camera::camera_frame,
         ])
         .run(tauri::generate_context!())
         .expect("не удалось запустить окно приложения");

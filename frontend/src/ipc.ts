@@ -12,6 +12,9 @@ import type {
   AppMode,
   AppState,
   BridgeResult,
+  CameraFrameResult,
+  CameraRequest,
+  CameraStatus,
   FrameInput,
   GetState,
   Metrics,
@@ -19,6 +22,9 @@ import type {
 
 /** Событие окна: ответ на каждый разобранный кадр. */
 export const STATE_EVENT = 'gesture://state'
+
+/** Событие окна: камера включилась, остановилась или упала. */
+export const CAMERA_EVENT = 'gesture://camera'
 
 /** Показывает состояние и счётчики одним запросом. */
 export function getState(): Promise<GetState> {
@@ -83,6 +89,36 @@ export function pushFrame(frame: FrameInput): Promise<BridgeResult> {
 /** Счётчики потока кадров без полного состояния. */
 export function getMetrics(): Promise<Metrics> {
   return invoke<Metrics>('get_metrics')
+}
+
+/** Открывает устройство и запускает фоновое чтение кадров. */
+export function startCamera(request: CameraRequest): Promise<CameraStatus> {
+  return invoke<CameraStatus>('start_camera', { request })
+}
+
+/** Останавливает чтение и освобождает устройство. */
+export function stopCamera(): Promise<CameraStatus> {
+  return invoke<CameraStatus>('stop_camera')
+}
+
+/** Текущий статус камеры без кадра. */
+export function cameraStatus(): Promise<CameraStatus> {
+  return invoke<CameraStatus>('camera_status')
+}
+
+/**
+ * Статус и последний кадр одним запросом.
+ *
+ * Кадр большой, поэтому тянуть его по событию на каждый кадр камеры
+ * нельзя: интерфейс сам решает, как часто смотрит.
+ */
+export function cameraFrame(): Promise<CameraFrameResult> {
+  return invoke<CameraFrameResult>('camera_frame')
+}
+
+/** Подписывается на смену состояния камеры. */
+export function onCamera(handler: (status: CameraStatus) => void): Promise<UnlistenFn> {
+  return listen<CameraStatus>(CAMERA_EVENT, (event) => handler(event.payload))
 }
 
 /** Подписывается на ответы окна по каждому кадру. */

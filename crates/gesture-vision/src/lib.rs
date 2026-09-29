@@ -5,6 +5,10 @@
 //! остаётся проверяемым тестами, а выбор и замена детектора (MediaPipe,
 //! OpenVINO, RTMPose, ONNX через `ort`) не трогает распознавание.
 //!
+//! Захват камеры вынесен отдельно в [`camera`]: там нет модели, только
+//! кадры. Источник кадров и источник точек — разные контракты, потому
+//! что камера работает всегда, а модель появится позже.
+//!
 //! # Подключение детектора
 //!
 //! ```
@@ -215,6 +219,10 @@ impl LandmarkSource for ScriptedLandmarks {
         self.size
     }
 }
+
+pub mod camera;
+
+pub use camera::{CameraConfig, FfmpegCamera, FrameSource, RgbFrame};
 
 #[cfg(test)]
 mod tests {

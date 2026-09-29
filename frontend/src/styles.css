@@ -90,6 +90,36 @@ h3 {
   background: #0d0f12;
 }
 
+.preview {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.preview__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0d0f12;
+}
+
+/*
+ * Подпись поверх пустого канваса. Позиция, а не `hidden`: пустой канвас
+ * и камера, которая не отвечает, выглядят одинаково, а человек должен
+ * видеть, что второй случай — это сбой.
+ */
+.preview__hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
 .stage__back {
   fill: #0d0f12;
 }

@@ -13,6 +13,7 @@ import {
 } from './demoFrames'
 import { BONES, isVisible, TIPS } from './skeleton'
 import { useBridge } from './useBridge'
+import { useCamera } from './useCamera'
 import type { AppState, PointSer, RecordingState, Sign } from './types'
 
 /** Подпись текущего жеста для показа. */
@@ -74,6 +75,7 @@ function Hands({ state }: { state: AppState }) {
 
 export default function App() {
   const bridge = useBridge()
+  const camera = useCamera()
   const [word, setWord] = useState('')
   const [isDynamic, setIsDynamic] = useState(false)
 
@@ -145,12 +147,39 @@ export default function App() {
       <section className="grid">
         <div className="panel">
           <h2>Кадр</h2>
+          <div className="preview">
+            <canvas ref={camera.canvasRef} className="preview__canvas" width={320} height={180} />
+            {!camera.status.running && <span className="preview__hint">камера выключена</span>}
+          </div>
+          <div className="row">
+            <button
+              type="button"
+              className={camera.status.running ? 'chip chip--on' : 'chip'}
+              disabled={camera.busy}
+              onClick={camera.toggle}
+            >
+              {camera.status.running ? 'Камера вкл' : 'Камера выкл'}
+            </button>
+            {camera.status.running && (
+              <span className="muted">
+                {camera.status.device} · кадров {camera.status.frames}
+              </span>
+            )}
+          </div>
+          {camera.notice && (
+            <p className="notice" role="status">
+              {camera.notice}
+              <button type="button" className="notice__close" onClick={camera.dismiss}>
+                скрыть
+              </button>
+            </p>
+          )}
           <Hands state={state} />
           <p className="muted">
-            Кистей в кадре: {state.engine.hands_visible}. Слой зрения на Rust ещё не выбран,
-            поэтому точки ниже отправляются вручную. Каждая кнопка шлёт пачку кадров:
-            одиночный кадр ядро не разбирает. Ладонь — это жест паузы, поэтому после неё
-            распознавание выключается.
+            Кистей в кадре: {state.engine.hands_visible}. Камера отдаёт кадры, но распознавание
+            кистей ещё не подключено: скелет выше рисуется по кнопкам, а не по кадру. Каждая
+            кнопка шлёт пачку кадров: одиночный кадр ядро не разбирает. Ладонь — это жест
+            паузы, поэтому после неё распознавание выключается.
           </p>
           <div className="row">
             <button type="button" onClick={() => send([openPalm()])}>

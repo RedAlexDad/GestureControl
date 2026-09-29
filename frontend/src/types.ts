@@ -58,6 +58,44 @@ export interface PointSer {
   y: number
 }
 
+/**
+ * Запрос на включение камеры. Нулевое поле означает «взять умолчание»,
+ * поэтому отдельно передавать 640x480 не нужно. Соответствует
+ * `gesture_control_lib::camera::CameraRequest`.
+ */
+export interface CameraRequest {
+  device: string
+  width: number
+  height: number
+  fps: number
+}
+
+/** Состояние камеры. Соответствует `camera::CameraStatus`. */
+export interface CameraStatus {
+  running: boolean
+  device: string
+  frames: number
+  error: string | null
+}
+
+/**
+ * Кадр превью: пиксели RGB24 в base64. Соответствует `camera::CameraFrame`.
+ *
+ * `rgb` — не data-URI: канвас ждёт сырые байты, а не строку, поэтому
+ * разбор base64 живёт в `useCamera`.
+ */
+export interface CameraFrame {
+  width: number
+  height: number
+  rgb: string
+}
+
+/** Статус и кадр одним ответом. Соответствует `camera::CameraFrameResult`. */
+export interface CameraFrameResult {
+  status: CameraStatus
+  frame: CameraFrame | null
+}
+
 /** Снимок движка: всё, что нужно нарисовать. */
 export interface EngineSnapshot {
   mode: AppMode
