@@ -12,14 +12,15 @@ import * as ipc from './ipc'
 import type { CameraFrame, CameraRequest, CameraStatus, Settings } from './types'
 
 /**
- * Как часто тянуть кадр, пока камера включена.
+ * Минимальная пауза между запросами кадра.
  *
- * Превью 640x480 RGB24 — это 921 600 байт, в base64 около 1,2 МБ на кадр, и
- * потолок здесь не камера, а размер картинки: 100 мс даёт десять кадров
- * превью в секунду, а каждый тик всё равно ждёт предыдущий ответ, и очередь
- * не растёт. Чаще — только лаг, реже — рваная картинка.
+ * Запросы идут не по расписанию, а друг за другом: следующий начинается
+ * сразу после ответа на предыдущий. Сервер всегда отдаёт самый свежий кадр,
+ * поэтому ожидание между запросами — это чистая задержка картинки. Пауза
+ * нужна только чтобы не крутить цикл вхолостую, если ответ приходит
+ * мгновенно; основной ограничитель — время самого запроса.
  */
-const POLL_MS = 100
+const POLL_MS = 16
 
 /**
  * Запрос, пока настройки не пришли.
@@ -62,6 +63,8 @@ export function useCamera(): Camera {
   // Занятость опроса живёт в ref, а не в состоянии: состояние перерисовало
   // бы кнопку камеры двадцать раз в секунду, и она мигала бы.
   const polling = useRef(false)
+  // Идёт ли цикл превью: им управляют запуск и остановка камеры.
+  const running = useRef(false)
 
   /** Запрос на включение из настроек окна, а не из констант интерфейса. */
   const request = useCallback((): CameraRequest => {
@@ -119,9 +122,24 @@ export function useCamera(): Camera {
     }
   }, [draw])
 
+  const pump = useCallback(async () => {
+    if (!running.current) return
+    await poll()
+    if (!running.current) return
+    // Следующий запрос — сразу после ответа: так картинка берётся с
+    // последнего кадра, а не с кадра на момент тика таймера.
+    timer.current = window.setTimeout(() => void pump(), POLL_MS)
+  }, [poll])
+
+  const startLoop = useCallback(() => {
+    running.current = true
+    void pump()
+  }, [pump])
+
   const stopLoop = useCallback(() => {
+    running.current = false
     if (timer.current !== null) {
-      window.clearInterval(timer.current)
+      window.clearTimeout(timer.current)
       timer.current = null
     }
   }, [])
@@ -132,15 +150,13 @@ export function useCamera(): Camera {
       const answer = await ipc.startCamera(request())
       setStatus(answer)
       setNotice(answer.error)
-      await poll()
-      stopLoop()
-      timer.current = window.setInterval(() => void poll(), POLL_MS)
+      startLoop()
     } catch (error: unknown) {
       setNotice(ipc.reportError(error))
     } finally {
       setBusy(false)
     }
-  }, [poll, request, stopLoop])
+  }, [request, startLoop])
 
   const stop = useCallback(async () => {
     stopLoop()
@@ -168,10 +184,7 @@ export function useCamera(): Camera {
       .then((answer) => {
         if (!alive) return
         setStatus(answer)
-        if (answer.running) {
-          void poll()
-          timer.current = window.setInterval(() => void poll(), POLL_MS)
-        }
+        if (answer.running) startLoop()
       })
       .catch((error: unknown) => {
         if (alive) setNotice(ipc.reportError(error))
@@ -188,9 +201,9 @@ export function useCamera(): Camera {
       })
     return () => {
       alive = false
-      if (timer.current !== null) window.clearInterval(timer.current)
+      stopLoop()
     }
-  }, [poll])
+  }, [startLoop, stopLoop])
 
   return {
     status,
@@ -206,7 +219,14 @@ export function useCamera(): Camera {
   }
 }
 
-/** Разбирает base64 в байты без копий по одному символу. */
+/**
+ * Разбирает base64 в байты.
+ *
+ * `atob` даёт бинарную строку, которую всё равно приходится перекладывать в
+ * `Uint8Array`: здесь на кадр 640x480 создаётся около 0,9 МБ строки и
+ * столько же байтов. Двоичная передача кадра без base64 убрала бы эту
+ * работу целиком — это следующий шаг по задержке.
+ */
 function decode(encoded: string): Uint8Array {
   const binary = window.atob(encoded)
   const bytes = new Uint8Array(binary.length)
