@@ -67,6 +67,10 @@ mod keys {
     pub const PALM_MODEL: &str = "GESTURE_PALM_MODEL";
     /// Путь к модели ключевых точек.
     pub const LANDMARK_MODEL: &str = "GESTURE_LANDMARK_MODEL";
+    /// Путь к `libmediapipe.so` официального MediaPipe.
+    pub const MEDIAPIPE_LIB: &str = "GESTURE_MEDIAPIPE_LIB";
+    /// Путь к модели `hand_landmarker.task`.
+    pub const HAND_TASK: &str = "GESTURE_HAND_TASK";
     /// Порог уверенности детектора ладоней.
     pub const DETECTOR_SCORE: &str = "GESTURE_DETECTOR_SCORE";
     /// Сколько кистей искать в кадре.

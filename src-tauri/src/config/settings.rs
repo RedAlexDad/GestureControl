@@ -129,6 +129,10 @@ pub struct DetectorSettings {
     pub palm_model: PathBuf,
     /// Путь к модели ключевых точек.
     pub landmark_model: PathBuf,
+    /// Путь к `libmediapipe.so` официального MediaPipe.
+    pub mediapipe_library: PathBuf,
+    /// Путь к модели `hand_landmarker.task`.
+    pub mediapipe_model: PathBuf,
     /// Порог уверенности детектора ладоней.
     pub score_threshold: f32,
     /// Сколько кистей искать в кадре.
@@ -141,6 +145,8 @@ impl Default for DetectorSettings {
             enabled: true,
             palm_model: PathBuf::from("models/palm_detection.onnx"),
             landmark_model: PathBuf::from("models/hand_landmark.onnx"),
+            mediapipe_library: PathBuf::from("models/libmediapipe.so"),
+            mediapipe_model: PathBuf::from("models/hand_landmarker.task"),
             score_threshold: 0.5,
             max_hands: 2,
         }
@@ -176,6 +182,14 @@ impl DetectorSettings {
             .as_ref()
             .map(|dir| dir.join("hand_landmark.onnx"))
             .unwrap_or(defaults.landmark_model);
+        let mediapipe_library = models
+            .as_ref()
+            .map(|dir| dir.join("libmediapipe.so"))
+            .unwrap_or(defaults.mediapipe_library);
+        let mediapipe_model = models
+            .as_ref()
+            .map(|dir| dir.join("hand_landmarker.task"))
+            .unwrap_or(defaults.mediapipe_model);
 
         DetectorSettings {
             enabled: read_flag(&lookup, keys::DETECTOR_ENABLED, true),
@@ -189,8 +203,29 @@ impl DetectorSettings {
                 keys::LANDMARK_MODEL,
                 &landmark.to_string_lossy(),
             )),
+            mediapipe_library: PathBuf::from(read_text(
+                &lookup,
+                keys::MEDIAPIPE_LIB,
+                &mediapipe_library.to_string_lossy(),
+            )),
+            mediapipe_model: PathBuf::from(read_text(
+                &lookup,
+                keys::HAND_TASK,
+                &mediapipe_model.to_string_lossy(),
+            )),
             score_threshold: read_float(&lookup, keys::DETECTOR_SCORE, 0.5),
             max_hands: read_number(&lookup, keys::DETECTOR_MAX_HANDS, 2) as usize,
+        }
+    }
+
+    /// Настройки официального MediaPipe Hand Landmarker.
+    pub fn mediapipe_config(&self) -> gesture_vision::detector::mediapipe::MediaPipeConfig {
+        gesture_vision::detector::mediapipe::MediaPipeConfig {
+            library: self.mediapipe_library.clone(),
+            model: self.mediapipe_model.clone(),
+            max_hands: self.max_hands,
+            min_detection: self.score_threshold,
+            ..gesture_vision::detector::mediapipe::MediaPipeConfig::default()
         }
     }
 

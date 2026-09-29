@@ -1,15 +1,15 @@
 //! Поток детектора кистей: кадр камеры → 21 точка → мост.
 //!
-//! Детектор читает последний кадр превью, находит кисти и отдаёт точки в
-//! тот же мост, что и команда `push_frame`. Благодаря этому распознавание,
-//! запись жестов и словарь работают с настоящими руками, а не только с
-//! демонстрационными позами интерфейса.
+//! Основной детектор — официальный MediaPipe Hand Landmarker: он сам находит
+//! кисть и ведёт её между кадрами, поэтому скелет ровнее, а точки точнее.
+//! Если модель или библиотека не найдены, берётся запасной ONNX-детектор.
 
 use std::time::{Duration, Instant};
 
 use gesture_bridge::FrameInput;
 use gesture_core::pipeline::PointSer;
-use gesture_vision::OnnxHandDetector;
+use gesture_core::VisionError;
+use gesture_vision::{HandLandmarks, OnnxHandDetector, RgbFrame};
 use tauri::{AppHandle, Manager};
 
 use crate::camera::CameraState;
@@ -18,9 +18,9 @@ use crate::state::{publish, AppStateInner};
 
 /// Сколько раз в секунду прогонять детектор.
 ///
-/// Выше смысла нет: камера отдаёт тридцать кадров, а распознаванию хватает
-/// пятнадцати, зато процессор не занят целиком.
-const TARGET_FPS: u64 = 15;
+/// MediaPipe ведёт отслеживание по времени между кадрами, поэтому частота
+/// совпадает с частотой камеры.
+const TARGET_FPS: u64 = 30;
 
 /// Запускает поток детектора. При отключённом детекторе поток не создаётся.
 pub fn spawn(app: AppHandle) {
@@ -37,20 +37,55 @@ pub fn spawn(app: AppHandle) {
     }
 }
 
+/// Детектор кистей: официальный MediaPipe, а при его отсутствии — ONNX.
+enum Backend {
+    MediaPipe(Box<gesture_vision::detector::mediapipe::MediaPipeHandDetector>),
+    Onnx(Box<OnnxHandDetector>),
+}
+
+impl Backend {
+    /// Загружает лучший доступный детектор.
+    fn load(settings: &DetectorSettings) -> Result<Self, VisionError> {
+        let mediapipe = settings.mediapipe_config();
+        if mediapipe.library.is_file() && mediapipe.model.is_file() {
+            match gesture_vision::detector::mediapipe::MediaPipeHandDetector::load(&mediapipe) {
+                Ok(detector) => {
+                    tracing::info!(
+                        "детектор кистей: MediaPipe {} и {}",
+                        mediapipe.library.display(),
+                        mediapipe.model.display()
+                    );
+                    return Ok(Backend::MediaPipe(Box::new(detector)));
+                }
+                Err(error) => {
+                    tracing::error!("MediaPipe не запустился: {error}; беру ONNX");
+                }
+            }
+        } else {
+            tracing::info!("моделей MediaPipe нет, беру ONNX");
+        }
+        let onnx = OnnxHandDetector::load(settings.detector_config())?;
+        Ok(Backend::Onnx(Box::new(onnx)))
+    }
+
+    /// Ищет кисти в кадре.
+    fn detect(&mut self, frame: &RgbFrame) -> Result<Vec<HandLandmarks>, VisionError> {
+        match self {
+            Backend::MediaPipe(detector) => detector.detect(frame),
+            Backend::Onnx(detector) => detector.detect(frame),
+        }
+    }
+}
+
 /// Загружает модели и крутит детекцию, пока живёт окно.
 fn run(app: AppHandle, settings: DetectorSettings) {
-    let mut detector = match OnnxHandDetector::load(settings.detector_config()) {
+    let mut detector = match Backend::load(&settings) {
         Ok(detector) => detector,
         Err(error) => {
             tracing::error!("детектор кистей не запущен: {error}");
             return;
         }
     };
-    tracing::info!(
-        "детектор кистей: {} и {}",
-        settings.palm_model.display(),
-        settings.landmark_model.display()
-    );
 
     let interval = Duration::from_millis(1000 / TARGET_FPS.max(1));
     loop {
@@ -64,7 +99,7 @@ fn run(app: AppHandle, settings: DetectorSettings) {
 }
 
 /// Один прогон: взять свежий кадр, найти кисти, отдать их мосту.
-fn process_once(app: &AppHandle, detector: &mut OnnxHandDetector) {
+fn process_once(app: &AppHandle, detector: &mut Backend) {
     let Some(frame) = app.state::<CameraState>().frame() else {
         // Камера выключена: ждём её появления, не крутя цикл вхолостую.
         std::thread::sleep(Duration::from_millis(50));
