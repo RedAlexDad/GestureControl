@@ -16,6 +16,7 @@ pub mod camera;
 pub mod commands;
 pub mod config;
 pub mod state;
+mod vision;
 
 use gesture_bridge::GestureBridge;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -63,6 +64,9 @@ pub fn run() {
             // Камера выключена при старте: устройство занимается только
             // после явной команды, чтобы окно не держало его открытым.
             app.manage(CameraState::new());
+            // Детектор кистей читает кадры превью и кормит ими мост: без
+            // него распознавание работает только на демонстрационных позах.
+            vision::spawn(app.handle().clone());
             // Окно создаём кодом, а не описываем в `tauri.conf.json`: размер
             // приходит из `.env` и переменных окружения, а файл конфигурации
             // читается при сборке и переменные не видит.

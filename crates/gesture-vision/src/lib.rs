@@ -221,8 +221,10 @@ impl LandmarkSource for ScriptedLandmarks {
 }
 
 pub mod camera;
+pub mod detector;
 
 pub use camera::{CameraConfig, FfmpegCamera, FrameSource, RgbFrame};
+pub use detector::{DetectorConfig, FrameLandmarkSource, OnnxHandDetector};
 
 #[cfg(test)]
 mod tests {

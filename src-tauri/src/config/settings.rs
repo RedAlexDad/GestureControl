@@ -117,6 +117,110 @@ impl WindowSettings {
     }
 }
 
+/// Настройки детектора кистей.
+///
+/// Детектор живёт в отдельном потоке и читает настройки сам: держать их в
+/// общем [`Settings`] незачем, а окну они не нужны.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DetectorSettings {
+    /// Включён ли детектор. Выключенный не грузит модели вовсе.
+    pub enabled: bool,
+    /// Путь к модели детектора ладоней.
+    pub palm_model: PathBuf,
+    /// Путь к модели ключевых точек.
+    pub landmark_model: PathBuf,
+    /// Порог уверенности детектора ладоней.
+    pub score_threshold: f32,
+    /// Сколько кистей искать в кадре.
+    pub max_hands: usize,
+}
+
+impl Default for DetectorSettings {
+    fn default() -> Self {
+        DetectorSettings {
+            enabled: true,
+            palm_model: PathBuf::from("models/palm_detection.onnx"),
+            landmark_model: PathBuf::from("models/hand_landmark.onnx"),
+            score_threshold: 0.5,
+            max_hands: 2,
+        }
+    }
+}
+
+impl DetectorSettings {
+    /// Читает настройки из окружения и файла `.env`.
+    pub fn load() -> DetectorSettings {
+        let file = EnvFile::discover();
+        DetectorSettings::from_source(|key| {
+            std::env::var(key)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+                .or_else(|| file.get(key).map(str::to_string))
+        })
+    }
+
+    /// Собирает настройки из произвольного источника по ключу.
+    pub fn from_source<F>(lookup: F) -> DetectorSettings
+    where
+        F: Fn(&str) -> Option<String>,
+    {
+        let defaults = DetectorSettings::default();
+        // Модели лежат в каталоге `models` в корне репозитория, а запуск
+        // идёт из `src-tauri`, поэтому ищем каталог вверх по дереву.
+        let models = discover_models_dir();
+        let palm = models
+            .as_ref()
+            .map(|dir| dir.join("palm_detection.onnx"))
+            .unwrap_or(defaults.palm_model);
+        let landmark = models
+            .as_ref()
+            .map(|dir| dir.join("hand_landmark.onnx"))
+            .unwrap_or(defaults.landmark_model);
+
+        DetectorSettings {
+            enabled: read_flag(&lookup, keys::DETECTOR_ENABLED, true),
+            palm_model: PathBuf::from(read_text(
+                &lookup,
+                keys::PALM_MODEL,
+                &palm.to_string_lossy(),
+            )),
+            landmark_model: PathBuf::from(read_text(
+                &lookup,
+                keys::LANDMARK_MODEL,
+                &landmark.to_string_lossy(),
+            )),
+            score_threshold: read_float(&lookup, keys::DETECTOR_SCORE, 0.5),
+            max_hands: read_number(&lookup, keys::DETECTOR_MAX_HANDS, 2) as usize,
+        }
+    }
+
+    /// Параметры детектора для слоя зрения.
+    pub fn detector_config(&self) -> gesture_vision::DetectorConfig {
+        gesture_vision::DetectorConfig {
+            palm_model: self.palm_model.clone(),
+            landmark_model: self.landmark_model.clone(),
+            score_threshold: self.score_threshold,
+            max_hands: self.max_hands,
+            ..gesture_vision::DetectorConfig::default()
+        }
+    }
+}
+
+/// Ищет каталог `models` вверх по дереву от текущего каталога.
+fn discover_models_dir() -> Option<PathBuf> {
+    let mut dir = std::env::current_dir().ok()?;
+    for _ in 0..=super::ENV_SEARCH_DEPTH {
+        let candidate = dir.join("models");
+        if candidate.join("palm_detection.onnx").is_file() {
+            return Some(candidate);
+        }
+        if !dir.pop() {
+            break;
+        }
+    }
+    None
+}
+
 /// Все настройки приложения.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
@@ -253,6 +357,41 @@ where
         Ok(value) => value,
         Err(_) => {
             tracing::warn!("{key}: «{raw}» не число, беру {fallback}");
+            fallback
+        }
+    }
+}
+
+/// Читает булево значение: `1/true/on/да` и `0/false/off/нет`.
+fn read_flag<F>(lookup: &F, key: &str, fallback: bool) -> bool
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let Some(raw) = lookup(key).map(|value| value.trim().to_lowercase()) else {
+        return fallback;
+    };
+    match raw.as_str() {
+        "1" | "true" | "on" | "yes" | "да" => true,
+        "0" | "false" | "off" | "no" | "нет" => false,
+        _ => {
+            tracing::warn!("{key}: «{raw}» не булево, беру {fallback}");
+            fallback
+        }
+    }
+}
+
+/// Читает число с плавающей точкой, отбрасывая мусор и неположительные.
+fn read_float<F>(lookup: &F, key: &str, fallback: f32) -> f32
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let Some(raw) = lookup(key).map(|value| value.trim().to_string()) else {
+        return fallback;
+    };
+    match raw.parse::<f32>() {
+        Ok(value) if value.is_finite() && value > 0.0 => value,
+        _ => {
+            tracing::warn!("{key}: «{raw}» не положительное число, беру {fallback}");
             fallback
         }
     }

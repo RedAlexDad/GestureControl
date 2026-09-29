@@ -1,10 +1,20 @@
 use std::path::{Path, PathBuf};
 
-use super::{EnvFile, Settings, WindowSettings, keys, ENV_FILE};
+use super::{keys, DetectorSettings, EnvFile, Settings, WindowSettings, ENV_FILE};
 
 /// Собирает настройки из фиксированных пар: без окружения и без файла.
 fn settings_from(pairs: &[(&str, &str)]) -> Settings {
     Settings::from_source(|key| {
+        pairs
+            .iter()
+            .find(|(name, _)| *name == key)
+            .map(|(_, value)| (*value).to_string())
+    })
+}
+
+/// Собирает настройки детектора из фиксированных пар.
+fn detector_from(pairs: &[(&str, &str)]) -> DetectorSettings {
+    DetectorSettings::from_source(|key| {
         pairs
             .iter()
             .find(|(name, _)| *name == key)
@@ -190,4 +200,38 @@ fn repository_env_file_is_valid() {
     let file = EnvFile::load(&path).expect(".env должен читаться");
     assert_eq!(file.get(keys::CAMERA_FPS), Some("30"));
     assert_eq!(file.get(keys::CAMERA_DEVICE), Some("/dev/video0"));
+}
+
+#[test]
+fn detector_is_enabled_by_default() {
+    let settings = detector_from(&[]);
+    assert!(settings.enabled);
+    assert_eq!(settings.score_threshold, 0.5);
+    assert_eq!(settings.max_hands, 2);
+    // Модели ищутся в каталоге `models`; имя файла задано умолчанием.
+    assert!(settings.palm_model.ends_with("palm_detection.onnx"));
+}
+
+#[test]
+fn detector_reads_flags_numbers_and_paths() {
+    let settings = detector_from(&[
+        (keys::DETECTOR_ENABLED, "нет"),
+        (keys::DETECTOR_SCORE, "0.7"),
+        (keys::DETECTOR_MAX_HANDS, "1"),
+        (keys::PALM_MODEL, "/tmp/palm.onnx"),
+    ]);
+    assert!(!settings.enabled, "«нет» выключает детектор");
+    assert_eq!(settings.score_threshold, 0.7);
+    assert_eq!(settings.max_hands, 1);
+    assert_eq!(settings.palm_model, PathBuf::from("/tmp/palm.onnx"));
+}
+
+#[test]
+fn detector_falls_back_on_bad_numbers() {
+    let settings = detector_from(&[
+        (keys::DETECTOR_SCORE, "abc"),
+        (keys::DETECTOR_MAX_HANDS, "0"),
+    ]);
+    assert_eq!(settings.score_threshold, 0.5);
+    assert_eq!(settings.max_hands, 2);
 }
