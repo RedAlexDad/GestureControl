@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 pub use commands::*;
 pub use types::*;
 
-use gesture_vision::FfmpegCamera;
+use gesture_vision::{FfmpegCamera, RgbFrame};
 
 use crate::config::Settings;
 use session::{Preview, Session};
@@ -167,13 +167,27 @@ impl CameraState {
 
     /// Текущий кадр превью в виде, удобном интерфейсу.
     pub fn preview(&self) -> Option<CameraFrame> {
-        let frame = self.preview.frame.lock().ok()?;
-        let frame = frame.as_ref()?;
+        // Под блокировкой только указатель: кодирование в base64 — самая
+        // тяжёлая операция ответа, и держать на ней мьютекс нельзя, иначе
+        // поток захвата не сможет положить свежий кадр.
+        let frame = {
+            let slot = self.preview.frame.lock().ok()?;
+            Arc::clone(slot.as_ref()?)
+        };
         Some(CameraFrame {
             width: frame.width,
             height: frame.height,
             rgb: frame.to_base64(),
         })
+    }
+
+    /// Последний кадр как есть: для детектора кистей.
+    ///
+    /// Отдаёт только указатель, без кодирования в base64: детектору нужны
+    /// пиксели, а не строка для интерфейса.
+    pub fn frame(&self) -> Option<Arc<RgbFrame>> {
+        let slot = self.preview.frame.lock().ok()?;
+        slot.as_ref().map(Arc::clone)
     }
 
     /// Статус с числом кадров и ошибкой, набранной потоком.

@@ -16,7 +16,9 @@ use super::preview_size;
 #[derive(Debug, Clone)]
 pub struct Preview {
     /// Кадр под мьютексом: он большой, и отдавать его наружу нельзя.
-    pub frame: Arc<Mutex<Option<RgbFrame>>>,
+    /// Сам кадр лежит в `Arc`, чтобы команда забирала только указатель, а
+    /// кодирование в base64 шло уже без блокировки.
+    pub frame: Arc<Mutex<Option<Arc<RgbFrame>>>>,
 }
 
 /// Состояние захвата, разделяемое между потоком камеры и командами.
@@ -64,11 +66,11 @@ pub fn capture_loop(
                     // Меньшая копия вместо полного кадра: превью не нуждается
                     // в пикселях, а держать их в памяти между кадрами незачем.
                     // Размер совпал с превью — кадр уже пригоден, копия лишняя.
-                    *slot = Some(if (frame.width, frame.height) == target {
+                    *slot = Some(Arc::new(if (frame.width, frame.height) == target {
                         frame
                     } else {
                         frame.resized(target.0, target.1)
-                    });
+                    }));
                 }
             }
             Err(reason) => {
