@@ -63,3 +63,7 @@ pub use state::{AppState, FrameInput, ScreenRow, SignRow};
 /// Точка кисти в сериализуемом виде: она входит в публичный API
 /// [`FrameInput`], поэтому переэкспортируется вместе с ним.
 pub use gesture_core::pipeline::{EngineEvent, PointSer};
+
+/// Режим работы приложения. Интерфейс переключает его командой, поэтому
+/// тип тоже принадлежит контракту моста, а не только ядру.
+pub use gesture_core::AppMode;

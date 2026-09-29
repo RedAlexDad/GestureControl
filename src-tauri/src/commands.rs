@@ -3,6 +3,10 @@
 //! Каждая команда тонкая: она переводит аргументы, зовёт мост и
 //! отдаёт готовое состояние. Разбор кадров, распознавание и словарь
 //! живут в `gesture-core`; здесь нет ни одной строки логики жестов.
+//!
+//! Имена полей на проводе совпадают с именами в Rust: мост сериализует
+//! как есть, без `rename_all`. Один согласованный вид на весь IPC
+//! позволяет сверять контракт с исходниками глазами, а не по памяти.
 
 use gesture_bridge::{AppMode, AppState, BridgeResult, FrameInput};
 use serde::{Deserialize, Serialize};
@@ -15,7 +19,6 @@ pub type Shared<'a> = State<'a, AppStateInner>;
 
 /// Текущее состояние: режим, фраза, запись, скины и словарь.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct GetState {
     /// Снимок для отрисовки.
     pub state: AppState,
@@ -26,7 +29,6 @@ pub struct GetState {
 
 /// Счётчики потока кадров в том же виде, что отдаёт мост.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metrics {
     /// Сколько кадров дошло до ядра.
     pub frames_ingested: u64,
@@ -48,7 +50,6 @@ impl From<gesture_bridge::BridgeMetrics> for Metrics {
 
 /// Запрос на смену режима: `Control` или `Translate`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SetMode {
     /// Имя режима: `Control` или `Translate`.
     pub mode: AppMode,
@@ -56,7 +57,6 @@ pub struct SetMode {
 
 /// Запрос на включение или выключение распознавания.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SetFlag {
     /// Новое значение флага.
     pub enabled: bool,
@@ -64,7 +64,6 @@ pub struct SetFlag {
 
 /// Запрос на запись нового жеста.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StartRecording {
     /// Слово, которому соответствует жест.
     pub word: String,
@@ -74,7 +73,6 @@ pub struct StartRecording {
 
 /// Запрос на удаление жеста из словаря.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DeleteSign {
     /// Идентификатор жеста из списка.
     pub id: String,
@@ -82,7 +80,6 @@ pub struct DeleteSign {
 
 /// Запрос на переключение экрана демо-интерфейса.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SwitchScreen {
     /// Номер экрана, на который нужно перейти.
     pub index: usize,

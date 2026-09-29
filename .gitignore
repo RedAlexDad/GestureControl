@@ -3,6 +3,9 @@
 /src-tauri/target
 **/*.rs.bk
 
+# Схемы прав, которые tauri-build собирает заново при каждой сборке
+/src-tauri/gen
+
 # Сборка фронтенда
 /dist
 /frontend/dist
