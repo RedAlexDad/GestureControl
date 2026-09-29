@@ -18,6 +18,7 @@ import type {
   FrameInput,
   GetState,
   Metrics,
+  Settings,
 } from './types'
 
 /** Событие окна: ответ на каждый разобранный кадр. */
@@ -25,6 +26,11 @@ export const STATE_EVENT = 'gesture://state'
 
 /** Событие окна: камера включилась, остановилась или упала. */
 export const CAMERA_EVENT = 'gesture://camera'
+
+/** Настройки приложения, прочитанные окном из `.env` и окружения. */
+export function getSettings(): Promise<Settings> {
+  return invoke<Settings>('get_settings')
+}
 
 /** Показывает состояние и счётчики одним запросом. */
 export function getState(): Promise<GetState> {

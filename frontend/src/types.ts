@@ -58,6 +58,32 @@ export interface PointSer {
   y: number
 }
 
+/** Настройки захвата камеры. Соответствует `config::CameraSettings`. */
+export interface CameraSettings {
+  device: string
+  width: number
+  height: number
+  fps: number
+}
+
+/** Размер превью в интерфейсе. Соответствует `config::PreviewSettings`. */
+export interface PreviewSettings {
+  width: number
+  height: number
+}
+
+/**
+ * Все настройки приложения. Соответствует `config::Settings`.
+ *
+ * Значения приходят из `.env` и переменных окружения, поэтому интерфейс
+ * показывает то, что окно действительно решило использовать, а не свои
+ * копии тех же чисел.
+ */
+export interface Settings {
+  camera: CameraSettings
+  preview: PreviewSettings
+}
+
 /**
  * Запрос на включение камеры. Нулевое поле означает «взять умолчание»,
  * поэтому отдельно передавать 640x480 не нужно. Соответствует

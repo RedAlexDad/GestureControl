@@ -166,6 +166,12 @@ export default function App() {
               </span>
             )}
           </div>
+          {camera.settings && !camera.status.running && (
+            <p className="muted">
+              По настройкам окна: {camera.settings.camera.device} · {camera.settings.camera.width}x
+              {camera.settings.camera.height} @ {camera.settings.camera.fps} fps
+            </p>
+          )}
           {camera.notice && (
             <p className="notice" role="status">
               {camera.notice}

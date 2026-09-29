@@ -9,12 +9,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as ipc from './ipc'
-import type { CameraFrame, CameraRequest, CameraStatus } from './types'
+import type { CameraFrame, CameraRequest, CameraStatus, Settings } from './types'
 
 /** Как часто тянуть кадр, пока камера включена. */
 const POLL_MS = 200
 
-/** Параметры по умолчанию: нули означают «попросить у окна умолчания». */
+/**
+ * Запрос, пока настройки не пришли.
+ *
+ * Нули означают «возьми умолчание у окна»: так камера стартует даже тогда,
+ * когда `get_settings` не ответил.
+ */
 const REQUEST: CameraRequest = { device: '', width: 0, height: 0, fps: 0 }
 
 const OFF: CameraStatus = { running: false, device: '', frames: 0, error: null }
@@ -23,6 +28,8 @@ export interface Camera {
   status: CameraStatus
   notice: string | null
   busy: boolean
+  /** Настройки окна: `null`, пока `get_settings` не ответил. */
+  settings: Settings | null
   /** Канвас для превью: хуку нужно настоящий элемент, а не ссылка извне. */
   canvasRef: (element: HTMLCanvasElement | null) => void
   toggle: () => void
@@ -41,9 +48,22 @@ export function useCamera(): Camera {
   const [status, setStatus] = useState<CameraStatus>(OFF)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const canvas = useRef<HTMLCanvasElement | null>(null)
   const image = useRef<ImageData | null>(null)
   const timer = useRef<number | null>(null)
+
+  /** Запрос на включение из настроек окна, а не из констант интерфейса. */
+  const request = useCallback((): CameraRequest => {
+    const camera = settings?.camera
+    if (!camera) return REQUEST
+    return {
+      device: camera.device,
+      width: camera.width,
+      height: camera.height,
+      fps: camera.fps,
+    }
+  }, [settings])
 
   const draw = useCallback((frame: CameraFrame) => {
     const element = canvas.current
@@ -93,7 +113,7 @@ export function useCamera(): Camera {
   const start = useCallback(async () => {
     setBusy(true)
     try {
-      const answer = await ipc.startCamera(REQUEST)
+      const answer = await ipc.startCamera(request())
       setStatus(answer)
       setNotice(answer.error)
       await poll()
@@ -104,7 +124,7 @@ export function useCamera(): Camera {
     } finally {
       setBusy(false)
     }
-  }, [poll, stopLoop])
+  }, [poll, request, stopLoop])
 
   const stop = useCallback(async () => {
     stopLoop()
@@ -140,6 +160,16 @@ export function useCamera(): Camera {
       .catch((error: unknown) => {
         if (alive) setNotice(ipc.errorText(error))
       })
+    // Настройки нужны для показа и для запроса на включение. Их сбой не
+    // должен мешать камере: окно подставит умолчания и без них.
+    void ipc
+      .getSettings()
+      .then((answer) => {
+        if (alive) setSettings(answer)
+      })
+      .catch((error: unknown) => {
+        if (alive) setNotice(ipc.errorText(error))
+      })
     return () => {
       alive = false
       if (timer.current !== null) window.clearInterval(timer.current)
@@ -150,6 +180,7 @@ export function useCamera(): Camera {
     status,
     notice,
     busy,
+    settings,
     canvasRef: (element) => {
       canvas.current = element
     },
