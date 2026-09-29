@@ -1,0 +1,26 @@
+# Makefile для фронтенда
+
+.PHONY: help dev build lint typecheck preview
+
+help:
+	@echo "Фронтенд:"
+	@echo "  dev      - npm run dev (vite)"
+	@echo "  build    - npm run build"
+	@echo "  lint     - npm run lint (если есть)"
+	@echo "  typecheck- tsc --noEmit"
+	@echo "  preview  - npm run preview"
+
+dev:
+	@cd frontend && npm run dev
+
+build:
+	@cd frontend && npm run build
+
+lint:
+	@cd frontend && npm run lint 2>/dev/null || echo "lint не настроен"
+
+typecheck:
+	@cd frontend && npx --no-install tsc --noEmit
+
+preview:
+	@cd frontend && npm run preview

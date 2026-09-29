@@ -1,0 +1,34 @@
+# Makefile для ядра и мостов
+
+.PHONY: help check test build-release clippy clean
+
+help:
+	@echo "Ядро и мосты:"
+	@echo "  check        - tsc, vite, cargo test, clippy (быстрые проверки)"
+	@echo "  test         - cargo test --workspace --offline"
+	@echo "  clippy       - cargo clippy --all-targets --offline"
+	@echo "  build-release- - cargo build --release (tauri)"
+	@echo "  clean        - cargo clean (осторожно)"
+
+check:
+	@echo "▶ TypeScript check"
+	@cd frontend && npx --no-install tsc --noEmit
+	@echo "▶ Vite build check"
+	@cd frontend && npx --no-install vite build --outDir /tmp/vite-check 2>/dev/null >/dev/null && rm -rf /tmp/vite-check
+	@echo "▶ Cargo tests"
+	@cargo test --workspace --offline
+	@echo "▶ Clippy"
+	@cargo clippy --workspace --all-targets --offline
+	@echo "✓ Все проверки пройдены"
+
+test:
+	@cargo test --workspace --offline
+
+clippy:
+	@cargo clippy --workspace --all-targets --offline
+
+build-release:
+	@cargo build --release --manifest-path src-tauri/Cargo.toml --offline
+
+clean:
+	@cargo clean

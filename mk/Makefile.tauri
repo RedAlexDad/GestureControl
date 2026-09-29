@@ -1,0 +1,22 @@
+# Makefile для Tauri
+
+.PHONY: help dev build release test
+
+help:
+	@echo "Tauri:"
+	@echo "  dev     - cargo tauri dev"
+	@echo "  build   - cargo tauri build"
+	@echo "  release - cargo build --release (tauri binary)"
+	@echo "  test    - cargo test -p gesture-control --offline"
+
+dev:
+	@cargo tauri dev
+
+build:
+	@cargo tauri build
+
+release:
+	@cargo build --release --manifest-path src-tauri/Cargo.toml --offline
+
+test:
+	@cargo test -p gesture-control --offline
