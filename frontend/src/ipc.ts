@@ -12,7 +12,6 @@ import type {
   AppMode,
   AppState,
   BridgeResult,
-  CameraFrameResult,
   CameraRequest,
   CameraStatus,
   FrameInput,
@@ -113,13 +112,13 @@ export function cameraStatus(): Promise<CameraStatus> {
 }
 
 /**
- * Статус и последний кадр одним запросом.
+ * Последний кадр превью одним запросом.
  *
- * Кадр большой, поэтому тянуть его по событию на каждый кадр камеры
- * нельзя: интерфейс сам решает, как часто смотрит.
+ * Ответ — двоичный пакет: ширина и высота по четыре байта, дальше пиксели
+ * RGB24. Ни base64, ни JSON: интерфейс рисует пиксели сразу.
  */
-export function cameraFrame(): Promise<CameraFrameResult> {
-  return invoke<CameraFrameResult>('camera_frame')
+export function cameraFrame(): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>('camera_frame')
 }
 
 /** Подписывается на смену состояния камеры. */

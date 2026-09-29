@@ -2,7 +2,7 @@
 
 use tauri::Emitter;
 
-use super::types::{CameraFrameResult, CameraRequest, CameraStatus};
+use super::types::{CameraRequest, CameraStatus};
 use super::CameraState;
 
 /// Событие со сменой состояния камеры: включилась, остановилась, ошибка.
@@ -34,16 +34,16 @@ pub fn camera_status(camera: tauri::State<'_, CameraState>) -> CameraStatus {
     camera.status()
 }
 
-/// Статус и последний кадр одним ответом.
+/// Последний кадр превью двоичным ответом.
 ///
-/// Интерфейс опрашивает только эту команду: отдельные вызовы разъезжались
-/// бы по времени и показывали бы кадр от прошлой сессии.
+/// Пиксели уходят как есть, без base64 и JSON: строка весила на треть
+/// больше, а окно тратило время на её разбор. Заголовок ответа — ширина и
+/// высота по четыре байта, младшим байтом вперёд, дальше готовый RGBA;
+/// пустой ответ означает, что кадра пока нет. Статус интерфейс спрашивает
+/// отдельной командой.
 #[tauri::command]
-pub fn camera_frame(camera: tauri::State<'_, CameraState>) -> CameraFrameResult {
-    CameraFrameResult {
-        status: camera.status(),
-        frame: camera.preview(),
-    }
+pub fn camera_frame(camera: tauri::State<'_, CameraState>) -> tauri::ipc::Response {
+    tauri::ipc::Response::new(camera.packed_frame().unwrap_or_default())
 }
 
 /// Отправляет интерфейсу смену состояния камеры.

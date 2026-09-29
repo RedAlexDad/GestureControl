@@ -190,6 +190,26 @@ impl CameraState {
         slot.as_ref().map(Arc::clone)
     }
 
+    /// Кадр превью двоичным пакетом: заголовок и пиксели RGBA.
+    ///
+    /// Заголовок — ширина и высота по четыре байта. Пиксели уже разложены в
+    /// RGBA: канвас в окне ждёт именно такой буфер, и раскладка здесь дешевле
+    /// попиксельного цикла в интерфейсе, который тормозил бы отрисовку.
+    pub fn packed_frame(&self) -> Option<Vec<u8>> {
+        let frame = self.frame()?;
+        let count = frame.width as usize * frame.height as usize;
+        let mut out = Vec::with_capacity(8 + count * 4);
+        out.extend_from_slice(&frame.width.to_le_bytes());
+        out.extend_from_slice(&frame.height.to_le_bytes());
+        for pixel in frame.pixels.chunks_exact(3) {
+            out.push(pixel[0]);
+            out.push(pixel[1]);
+            out.push(pixel[2]);
+            out.push(255);
+        }
+        Some(out)
+    }
+
     /// Статус с числом кадров и ошибкой, набранной потоком.
     pub fn status(&self) -> CameraStatus {
         let session = self.lock(&self.session);
