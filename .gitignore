@@ -17,3 +17,8 @@
 
 # Логи и временные файлы
 *.log
+
+# MediaPipe: библиотека C API и модель Hand Landmarker. Файлы большие,
+# поэтому качаются scripts/fetch-models.sh, а не хранятся в git.
+/models/libmediapipe.so
+/models/hand_landmarker.task
