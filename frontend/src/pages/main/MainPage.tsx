@@ -4,6 +4,7 @@ import { Notice } from '@/shared/ui'
 import { CameraPanel } from '@/widgets/camera-panel'
 import { EnginePanel } from '@/widgets/engine-panel'
 import { LibraryPanel } from '@/widgets/library-panel'
+import { Subtitles } from '@/widgets/subtitles'
 import { TopBar } from '@/widgets/top-bar'
 
 /** Главный экран: камера, состояние и словарь. */
@@ -30,6 +31,14 @@ export function MainPage() {
         onRecognition={(enabled) => void bridge.setRecognition(enabled)}
         onSpeech={(enabled) => void bridge.setSpeech(enabled)}
         onStopSpeech={() => void bridge.stopSpeech()}
+      />
+
+      <Subtitles
+        mode={state.mode}
+        sign={state.engine.sign}
+        phrase={state.engine.phrase}
+        word={state.engine.streaming_word}
+        recognitionEnabled={state.engine.recognition_enabled}
       />
 
       {bridge.notice && <Notice onClose={bridge.dismiss}>{bridge.notice}</Notice>}
