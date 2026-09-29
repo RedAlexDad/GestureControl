@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as ipc from './ipc'
-import type { AppState, Metrics } from './types'
+import type { AppState, Metrics, PointSer } from './types'
 
 const EMPTY_METRICS: Metrics = {
   frames_ingested: 0,
@@ -26,7 +26,7 @@ export interface Bridge {
   cancelRecording: () => Promise<void>
   deleteSign: (id: string) => Promise<void>
   clearSigns: () => Promise<void>
-  pushFrame: (frame: { time: number; hands: { x: number; y: number }[][] }) => Promise<void>
+  pushFrames: (hands: PointSer[][], frames?: number) => Promise<void>
   dismiss: () => void
 }
 
@@ -97,19 +97,19 @@ export function useBridge(): Bridge {
     [run],
   )
 
-  const pushFrame = useCallback(
-    async (frame: { time: number; hands: { x: number; y: number }[][] }) => {
+  const pushFrames = useCallback(async (hands: PointSer[][], frames = 12) => {
+    for (let index = 0; index < frames; index += 1) {
       clock.current += 1 / 30
       try {
-        const result = await ipc.pushFrame({ ...frame, time: clock.current })
+        const result = await ipc.pushFrame({ time: clock.current, hands })
         setState(result.state)
         setNotice(result.stale ? 'кадр устарел и был отброшен' : null)
       } catch (error: unknown) {
         setNotice(ipc.errorText(error))
+        return
       }
-    },
-    [],
-  )
+    }
+  }, [])
 
   return {
     state,
@@ -127,7 +127,7 @@ export function useBridge(): Bridge {
     cancelRecording: () => engineOnly(() => ipc.cancelRecording()),
     deleteSign: (id) => engineOnly(() => ipc.deleteSign(id)),
     clearSigns: () => engineOnly(() => ipc.clearSigns()),
-    pushFrame,
+    pushFrames,
     dismiss: () => setNotice(null),
   }
 }

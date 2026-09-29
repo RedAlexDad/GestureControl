@@ -1,81 +1,185 @@
 /** Синтетические кадры для проверки ядра без камеры. */
 
-import { JOINTS, type FrameInput, type PointSer } from './types'
+/**
+ * Позы собраны так, чтобы проходить настоящий классификатор.
+ *
+ * Координаты ладони взяты из теста `open_palm_pauses_recognition` в
+ * `gesture-core`, поэтому ладонь точно считается. Пальцы «сгибаются»
+ * переносом точек к запястью: при таком движении кончик заведомо
+ * ближе к запястью, чем сустав, а именно это проверяет
+ * `HandGeometry::is_finger_extended`.
+ *
+ * Порядок точек — как `gesture_core::joint`: запястье, затем по четыре
+ * точки на палец от основания к кончику.
+ */
 
-const WIDTH = 640
-const HEIGHT = 480
+import type { PointSer } from './types'
 
-/** Точка скелета кисти, смещённая относительно запястья. */
-const SKELETON: readonly (readonly [number, number])[] = [
-  [0, 0.12], // запястье
-  [-0.16, 0.02],
-  [-0.3, -0.02],
-  [-0.42, -0.04],
-  [-0.52, -0.06], // большой палец
-  [-0.12, -0.14],
-  [-0.14, -0.34],
-  [-0.15, -0.5],
-  [-0.16, -0.62], // указательный
-  [-0.02, -0.16],
-  [-0.02, -0.38],
-  [-0.02, -0.56],
-  [-0.02, -0.7], // средний
-  [0.08, -0.14],
-  [0.1, -0.34],
-  [0.11, -0.5],
-  [0.12, -0.62], // безымянный
-  [0.17, -0.1],
-  [0.21, -0.26],
-  [0.24, -0.4], // мизинец
-  [0, 0.1], // основание ладони
+const WRIST = 0
+const THUMB_TIP = 4
+const INDEX_MCP = 5
+const MIDDLE_MCP = 9
+const RING_MCP = 13
+const LITTLE_MCP = 17
+
+/** Пальцы кроме большого: основание, затем три точки к кончику. */
+const FINGERS = [
+  [INDEX_MCP, 6, 7, 8],
+  [MIDDLE_MCP, 10, 11, 12],
+  [RING_MCP, 14, 15, 16],
+  [LITTLE_MCP, 18, 19, 20],
+] as const
+
+/** Точки ладони, по которым ядро считает размер и центр кисти. */
+const PALM = [WRIST, INDEX_MCP, MIDDLE_MCP, RING_MCP, LITTLE_MCP]
+
+/** Раскрытая ладонь, wrist в (320, 240). Размер ладони — 55 px. */
+const PALM_POINTS: PointSer[] = [
+  { x: 320, y: 240 },
+  { x: 300, y: 235 },
+  { x: 282, y: 230 },
+  { x: 268, y: 223 },
+  { x: 258, y: 215 },
+  { x: 295, y: 195 },
+  { x: 295, y: 180 },
+  { x: 295, y: 170 },
+  { x: 295, y: 160 },
+  { x: 320, y: 185 },
+  { x: 320, y: 170 },
+  { x: 320, y: 160 },
+  { x: 320, y: 150 },
+  { x: 345, y: 195 },
+  { x: 345, y: 180 },
+  { x: 345, y: 170 },
+  { x: 345, y: 160 },
+  { x: 368, y: 210 },
+  { x: 368, y: 195 },
+  { x: 368, y: 185 },
+  { x: 368, y: 175 },
 ]
 
-/** Скелет кисти, повёрнутый на угол и сдвинутый в точку кадра. */
-export function hand(cx: number, cy: number, angle: number, scale = 1): PointSer[] {
-  const sin = Math.sin(angle)
-  const cos = Math.cos(angle)
-  return SKELETON.map(([dx, dy]) => ({
-    x: cx + (dx * cos - dy * sin) * scale,
-    y: cy + (dx * sin + dy * cos) * scale,
-  }))
+/**
+ * Доля пути от сустава к запястью для сустава, средней и кончика.
+ *
+ * Чем больше доля, тем ближе точка к запястью: кончик заведомо оказывается
+ * ближе к запястью, чем сустав, а именно это и означает согнутый палец.
+ */
+const CURL_SHARES: readonly [number, number, number] = [0.3, 0.55, 0.75]
+
+/** Сдвигает три точки пальца к запястью: палец оказывается согнут. */
+function curl(points: PointSer[], finger: readonly [number, number, number, number]): void {
+  const base = points[finger[0]]
+  const wrist = points[WRIST]
+  if (!base || !wrist) return
+  const joints = [finger[1], finger[2], finger[3]]
+  for (const [step, index] of joints.entries()) {
+    const point = points[index]
+    const share = CURL_SHARES[step]
+    if (!point || share === undefined) continue
+    point.x = base.x + (wrist.x - base.x) * share
+    point.y = base.y + (wrist.y - base.y) * share
+  }
 }
 
-/** Раскрытая ладонь: пять пальцев, все точки на месте. */
-export function openPalm(cx: number, cy: number, angle: number, scale = 1): PointSer[] {
-  return hand(cx, cy, angle, scale)
+/** Сдвигает кончик большого пальца в заданную точку. */
+function thumbTo(points: PointSer[], x: number, y: number): void {
+  const tip = points[THUMB_TIP]
+  if (tip) {
+    tip.x = x
+    tip.y = y
+  }
 }
 
-/** Кулак: кончики пальцев собраны к ладони, палец не вытянут. */
-export function fist(cx: number, cy: number, angle: number, scale = 1): PointSer[] {
-  const curled = hand(cx, cy, angle, scale)
-  return curled.map((point, index) => {
-    if (index === 0) return point
-    const fingers = [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19]
-    if (!fingers.includes(index)) return point
-    const wrist = curled[0]
-    if (!wrist) return point
-    return {
-      x: wrist.x + (point.x - wrist.x) * 0.45,
-      y: wrist.y + (point.y - wrist.y) * 0.45,
+function pose(): PointSer[] {
+  return PALM_POINTS.map((point) => ({ ...point }))
+}
+
+/** Ладонь: все четыре пальца вытянуты. */
+export function openPalm(): PointSer[] {
+  return pose()
+}
+
+/**
+ * Кулак: пальцы согнуты, большой прижат к основанию указательного.
+ *
+ * Кончик большого остаётся ниже верхней грани ладони, иначе получится
+ * не кулак, а «лайк».
+ */
+export function fist(): PointSer[] {
+  const points = pose()
+  for (const finger of FINGERS) curl(points, finger)
+  thumbTo(points, 305, 205)
+  return points
+}
+
+/** «Лайк»: те же согнутые пальцы, но большой поднят вверх. */
+export function thumbsUp(): PointSer[] {
+  const points = pose()
+  for (const finger of FINGERS) curl(points, finger)
+  thumbTo(points, 296, 118)
+  return points
+}
+
+/** «victory»: вытянуты указательный и средний. */
+export function victory(): PointSer[] {
+  const points = pose()
+  curl(points, FINGERS[2]!)
+  curl(points, FINGERS[3]!)
+  thumbTo(points, 268, 228)
+  return points
+}
+
+/** Указательный палец: остальные согнуты. */
+export function pointing(): PointSer[] {
+  const points = pose()
+  curl(points, FINGERS[1]!)
+  curl(points, FINGERS[2]!)
+  curl(points, FINGERS[3]!)
+  thumbTo(points, 290, 215)
+  return points
+}
+
+/**
+ * Кисть с выпавшими точками: кончики указательного и среднего закрыты.
+ *
+ * Отрицательные координаты — соглашение ядра об отсутствующей точке.
+ */
+export function partialHand(): PointSer[] {
+  const points = openPalm()
+  for (const index of [8, 12]) {
+    const point = points[index]
+    if (point) {
+      point.x = -1
+      point.y = -1
     }
-  })
-}
-
-/** Кисть, у которой часть точек не видна: отрицательный `x` — пропуск. */
-export function partialHand(cx: number, cy: number, angle: number, scale = 1): PointSer[] {
-  const full = fist(cx, cy, angle, scale)
-  return full.map((point, index) => (index >= 8 && index <= 12 ? { x: -1, y: -1 } : point))
+  }
+  return points
 }
 
 /** Кисть с неверным числом точек: ядро должно её отбросить. */
 export function brokenHand(): PointSer[] {
-  return hand(WIDTH / 2, HEIGHT / 2, 0).slice(0, 5)
+  return openPalm().slice(0, 7)
 }
 
-/** Кадр из переданных кистей. */
-export function frame(time: number, hands: PointSer[][]): FrameInput {
-  return { time, hands }
+/** Кисть без ладони: `HandGeometry::new` вернёт `None`. */
+export function noPalmHand(): PointSer[] {
+  const points = openPalm()
+  for (const index of PALM) {
+    const point = points[index]
+    if (point) {
+      point.x = -1
+      point.y = -1
+    }
+  }
+  return points
 }
 
-/** Рамка кадра: нужна компоновке скелета. */
-export const FRAME = { width: WIDTH, height: HEIGHT, joints: JOINTS }
+/**
+ * Сколько кадров нужно отправить, чтобы поза была распознана.
+ *
+ * Один кадр не даёт ничего: автомат на появлении кисти лишь запоминает
+ * положение, а жест появляется, только когда поза держится дольше
+ * `STILL_TIME` ядра. Двенадцать кадров по 1/30 с покрывают и это время,
+ * и запас на `HOLD_TIME` удержания.
+ */
+export const POSE_FRAMES = 12

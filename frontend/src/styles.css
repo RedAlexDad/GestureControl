@@ -94,6 +94,13 @@ h3 {
   fill: #0d0f12;
 }
 
+.skeleton line {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
 .skeleton circle {
   fill: var(--accent);
   stroke: #0d0f12;
