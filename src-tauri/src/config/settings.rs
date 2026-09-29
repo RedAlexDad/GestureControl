@@ -47,11 +47,13 @@ pub struct PreviewSettings {
 
 impl Default for PreviewSettings {
     fn default() -> Self {
-        // 320x180 RGB24 — это 172 800 байт на кадр. Кадр уходит в интерфейс
-        // как base64 в JSON-событии, и исходный размер забьёт очередь IPC.
+        // Превью равно размеру захвата: интерфейс рисует кадр без уменьшения,
+        // поэтому картинка остаётся резкой. RGB24 на кадр — 921 600 байт, они
+        // уходят в интерфейс как base64 в JSON-ответе, поэтому частота
+        // опроса на стороне окна ограничена размером кадра.
         PreviewSettings {
-            width: 320,
-            height: 180,
+            width: 640,
+            height: 480,
         }
     }
 }
@@ -104,8 +106,8 @@ impl Settings {
             fps: read_number(&lookup, keys::CAMERA_FPS, 30),
         };
         let preview = PreviewSettings {
-            width: read_number(&lookup, keys::PREVIEW_WIDTH, 320),
-            height: read_number(&lookup, keys::PREVIEW_HEIGHT, 180),
+            width: read_number(&lookup, keys::PREVIEW_WIDTH, 640),
+            height: read_number(&lookup, keys::PREVIEW_HEIGHT, 480),
         };
         Settings { camera, preview }
     }

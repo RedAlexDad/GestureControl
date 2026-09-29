@@ -176,6 +176,47 @@ fn resized_keeps_proportions_by_nearest_neighbour() {
 }
 
 #[test]
+fn resized_pads_wide_target_instead_of_stretching() {
+    // Кадр 4:3 в окно 2:1: картинка остаётся 4:3 и по краям идут чёрные
+    // поля. Без этого кадр растягивался бы вдвое по ширине.
+    let mut source = RgbFrame::new(4, 3, vec![0; 36]).expect("исходный кадр");
+    for (index, pixel) in source.pixels.chunks_mut(3).enumerate() {
+        pixel.copy_from_slice(&[index as u8, 1, 2]);
+    }
+    let preview = source.resized(4, 2);
+    assert_eq!((preview.width, preview.height), (4, 2));
+    let pixel_at = |x: usize, y: usize| {
+        let from = (y * preview.width as usize + x) * 3;
+        preview.pixels[from..from + 3].to_vec()
+    };
+    // Верхняя строка исходника целиком, дальше поля слева и справа.
+    assert_eq!(pixel_at(0, 0), vec![0, 1, 2]);
+    assert_eq!(pixel_at(1, 0), vec![1, 1, 2]);
+    assert_eq!(pixel_at(2, 0), vec![2, 1, 2]);
+    assert_eq!(pixel_at(3, 0), vec![0, 0, 0]);
+    // Вторая строка исходника, а не первая повторённая.
+    assert_eq!(pixel_at(0, 1), vec![4, 1, 2]);
+    assert_eq!(pixel_at(3, 1), vec![0, 0, 0]);
+}
+
+#[test]
+fn resized_pads_tall_target_instead_of_stretching() {
+    // Квадратный кадр в широкое окно: остаётся квадратом, поля по бокам
+    // закрыты чёрным, а не растянутыми полосами кадра.
+    let source = RgbFrame::new(4, 4, vec![7; 48]).expect("исходный кадр");
+    let preview = source.resized(4, 2);
+    assert_eq!((preview.width, preview.height), (4, 2));
+    let column = |x: usize| {
+        let from = x * 3;
+        preview.pixels[from..from + 3].to_vec()
+    };
+    assert_eq!(column(0), vec![0, 0, 0]);
+    assert_eq!(column(1), vec![7, 7, 7]);
+    assert_eq!(column(2), vec![7, 7, 7]);
+    assert_eq!(column(3), vec![0, 0, 0]);
+}
+
+#[test]
 fn resized_picks_expected_pixels() {
     let mut source = RgbFrame::new(2, 1, vec![0; 6]).expect("исходный кадр");
     source.pixels = vec![10, 0, 0, 20, 0, 0];

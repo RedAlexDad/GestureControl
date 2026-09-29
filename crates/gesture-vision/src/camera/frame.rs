@@ -49,21 +49,32 @@ impl RgbFrame {
 
     /// Меньшая копия кадра для превью.
     ///
-    /// Ближайший сосед, а не усреднение: превью нужно дёшево, а размытие
-    /// на нём только мешает разглядеть контуры кисти.
+    /// Пропорции сохраняются, лишнее место закрывается чёрным: камера
+    /// обычно 4:3, а превью в окне 16:9, и растягивание кадра под размер
+    /// окна делало бы картинку плоской. Масштаб задаёт меньшая сторона.
+    ///
+    /// Соседние точки копируются как есть, без усреднения: превью нужно
+    /// дёшево, а размытие на нём только мешает разглядеть контуры кисти.
     pub fn resized(&self, width: u32, height: u32) -> RgbFrame {
         let width = width.clamp(1, self.width);
         let height = height.clamp(1, self.height);
         if width == self.width && height == self.height {
             return self.clone();
         }
+        let scale = (width as f64 / self.width as f64).min(height as f64 / self.height as f64);
+        let inner_width = ((self.width as f64 * scale).round() as u32).clamp(1, width);
+        let inner_height = ((self.height as f64 * scale).round() as u32).clamp(1, height);
+        let offset_x = (width - inner_width) / 2;
+        let offset_y = (height - inner_height) / 2;
         let mut pixels = vec![0; frame_bytes(width, height)];
-        for y in 0..height {
-            let source_row = (y as u64 * self.height as u64 / height as u64) as usize;
-            for x in 0..width {
-                let source_column = (x as u64 * self.width as u64 / width as u64) as usize;
+        for y in 0..inner_height {
+            let source_row = (y as u64 * self.height as u64 / inner_height as u64) as usize;
+            let to_row = y as usize + offset_y as usize;
+            for x in 0..inner_width {
+                let source_column = (x as u64 * self.width as u64 / inner_width as u64) as usize;
                 let from = (source_row * self.width as usize + source_column) * 3;
-                let to = (y as usize * width as usize + x as usize) * 3;
+                let to_column = x as usize + offset_x as usize;
+                let to = (to_row * width as usize + to_column) * 3;
                 pixels[to..to + 3].copy_from_slice(&self.pixels[from..from + 3]);
             }
         }

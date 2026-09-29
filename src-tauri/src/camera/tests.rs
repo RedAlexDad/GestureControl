@@ -214,8 +214,8 @@ fn real_camera_delivers_frames_when_device_exists() {
         assert!(status.error.is_none(), "ошибок быть не должно: {status:?}");
 
         let frame = state.preview().expect("кадр должен появиться в превью");
-        assert_eq!(frame.width, 320);
-        assert_eq!(frame.height, 180);
+        assert_eq!(frame.width, 640);
+        assert_eq!(frame.height, 480);
         // base64 кодирует по 3 байта в 4 символа, с хвостом из '='.
         let bytes = frame.width as usize * frame.height as usize * 3;
         let expected = bytes.div_ceil(3) * 4;

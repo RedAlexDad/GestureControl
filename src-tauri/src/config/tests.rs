@@ -19,7 +19,7 @@ fn defaults_capture_thirty_frames() {
     assert_eq!(settings.camera.width, 640);
     assert_eq!(settings.camera.height, 480);
     assert_eq!(settings.camera.fps, 30);
-    assert_eq!(settings.preview_size(), (320, 180));
+    assert_eq!(settings.preview_size(), (640, 480));
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn source_overrides_defaults() {
     assert_eq!(settings.camera.fps, 15);
     assert_eq!(settings.preview.width, 160);
     // Незаданная высота осталась от умолчания.
-    assert_eq!(settings.preview.height, 180);
+    assert_eq!(settings.preview.height, 480);
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn broken_numbers_fall_back_to_defaults() {
     ]);
     assert_eq!(settings.camera.fps, 30);
     assert_eq!(settings.camera.width, 640);
-    assert_eq!(settings.preview.height, 180);
+    assert_eq!(settings.preview.height, 480);
 }
 
 #[test]

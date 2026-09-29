@@ -99,7 +99,6 @@ h3 {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 9;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #0d0f12;

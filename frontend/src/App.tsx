@@ -148,7 +148,7 @@ export default function App() {
         <div className="panel">
           <h2>Кадр</h2>
           <div className="preview">
-            <canvas ref={camera.canvasRef} className="preview__canvas" width={320} height={180} />
+            <canvas ref={camera.canvasRef} className="preview__canvas" width={640} height={480} />
             {!camera.status.running && <span className="preview__hint">камера выключена</span>}
           </div>
           <div className="row">

@@ -63,7 +63,12 @@ pub fn capture_loop(
                 if let Ok(mut slot) = preview.frame.lock() {
                     // Меньшая копия вместо полного кадра: превью не нуждается
                     // в пикселях, а держать их в памяти между кадрами незачем.
-                    *slot = Some(frame.resized(target.0, target.1));
+                    // Размер совпал с превью — кадр уже пригоден, копия лишняя.
+                    *slot = Some(if (frame.width, frame.height) == target {
+                        frame
+                    } else {
+                        frame.resized(target.0, target.1)
+                    });
                 }
             }
             Err(reason) => {

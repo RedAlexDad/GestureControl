@@ -11,8 +11,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as ipc from './ipc'
 import type { CameraFrame, CameraRequest, CameraStatus, Settings } from './types'
 
-/** Как часто тянуть кадр, пока камера включена. */
-const POLL_MS = 200
+/**
+ * Как часто тянуть кадр, пока камера включена.
+ *
+ * Превью 640x480 RGB24 — это 921 600 байт, в base64 около 1,2 МБ на кадр, и
+ * потолок здесь не камера, а размер картинки: 100 мс даёт десять кадров
+ * превью в секунду, а каждый тик всё равно ждёт предыдущий ответ, и очередь
+ * не растёт. Чаще — только лаг, реже — рваная картинка.
+ */
+const POLL_MS = 100
 
 /**
  * Запрос, пока настройки не пришли.
@@ -52,6 +59,9 @@ export function useCamera(): Camera {
   const canvas = useRef<HTMLCanvasElement | null>(null)
   const image = useRef<ImageData | null>(null)
   const timer = useRef<number | null>(null)
+  // Занятость опроса живёт в ref, а не в состоянии: состояние перерисовало
+  // бы кнопку камеры двадцать раз в секунду, и она мигала бы.
+  const polling = useRef(false)
 
   /** Запрос на включение из настроек окна, а не из констант интерфейса. */
   const request = useCallback((): CameraRequest => {
@@ -93,6 +103,10 @@ export function useCamera(): Camera {
   }, [])
 
   const poll = useCallback(async () => {
+    // Пропущенный тик лучше второго запроса в полёте: ответы приходят
+    // по порядку, и очередь из них только оттягивает картинку.
+    if (polling.current) return
+    polling.current = true
     try {
       const answer = await ipc.cameraFrame()
       setStatus(answer.status)
@@ -100,6 +114,8 @@ export function useCamera(): Camera {
       if (answer.status.error) setNotice(answer.status.error)
     } catch (error: unknown) {
       setNotice(ipc.errorText(error))
+    } finally {
+      polling.current = false
     }
   }, [draw])
 
