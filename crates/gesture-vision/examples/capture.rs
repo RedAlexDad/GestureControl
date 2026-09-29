@@ -38,6 +38,11 @@ fn parse_args(args: &[String]) -> Result<Options, String> {
             None => (args[index].clone(), None),
         };
         let mut value = || -> Result<String, String> {
+            // У `--ключ=значение` значение уже лежит в этом же аргументе,
+            // иначе значение — следующий аргумент.
+            if let Some(inline) = inline.clone() {
+                return Ok(inline);
+            }
             index += 1;
             args.get(index)
                 .cloned()
