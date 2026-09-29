@@ -1,9 +1,9 @@
-/** Хранение состояния окна и подписка на его события. */
+/** Состояние моста: снимок окна и команды интерфейса. */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
-import * as ipc from './ipc'
-import type { AppState, Metrics, PointSer } from './types'
+import * as ipc from '@/shared/api/ipc'
+import type { AppState, Metrics } from '@/shared/api/types'
 
 const EMPTY_METRICS: Metrics = {
   frames_ingested: 0,
@@ -26,7 +26,6 @@ export interface Bridge {
   cancelRecording: () => Promise<void>
   deleteSign: (id: string) => Promise<void>
   clearSigns: () => Promise<void>
-  pushFrames: (hands: PointSer[][], frames?: number) => Promise<void>
   dismiss: () => void
 }
 
@@ -41,7 +40,6 @@ export function useBridge(): Bridge {
   const [metrics, setMetrics] = useState<Metrics>(EMPTY_METRICS)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const clock = useRef(0)
 
   useEffect(() => {
     let alive = true
@@ -97,20 +95,6 @@ export function useBridge(): Bridge {
     [run],
   )
 
-  const pushFrames = useCallback(async (hands: PointSer[][], frames = 12) => {
-    for (let index = 0; index < frames; index += 1) {
-      clock.current += 1 / 30
-      try {
-        const result = await ipc.pushFrame({ time: clock.current, hands })
-        setState(result.state)
-        setNotice(result.stale ? 'кадр устарел и был отброшен' : null)
-      } catch (error: unknown) {
-        setNotice(ipc.reportError(error))
-        return
-      }
-    }
-  }, [])
-
   return {
     state,
     metrics,
@@ -122,12 +106,10 @@ export function useBridge(): Bridge {
     stopSpeech: () => engineOnly(() => ipc.stopSpeech()),
     tap: (index) => run(async () => ({ state: (await ipc.tap(index)).state })),
     finishPhrase: () => run(async () => ({ state: (await ipc.finishPhrase()).state })),
-    startRecording: (word, isDynamic) =>
-      engineOnly(() => ipc.startRecording(word, isDynamic)),
+    startRecording: (word, isDynamic) => engineOnly(() => ipc.startRecording(word, isDynamic)),
     cancelRecording: () => engineOnly(() => ipc.cancelRecording()),
     deleteSign: (id) => engineOnly(() => ipc.deleteSign(id)),
     clearSigns: () => engineOnly(() => ipc.clearSigns()),
-    pushFrames,
     dismiss: () => setNotice(null),
   }
 }

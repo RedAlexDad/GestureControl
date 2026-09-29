@@ -2,14 +2,14 @@
  * Живое превью камеры.
  *
  * Кадр приходит двоичным пакетом: ширина и высота по четыре байта, дальше
- * пиксели RGB24. Хук рисует их прямо на канвасе и не тратит время на
- * base64 и JSON. Статус спрашивается редко: он меняется не каждый кадр.
+ * готовый RGBA. Хук рисует буфер как есть и не тратит время на base64 и
+ * JSON. Статус спрашивается редко: он меняется не каждый кадр.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import * as ipc from './ipc'
-import type { CameraRequest, CameraStatus, Settings } from './types'
+import * as ipc from '@/shared/api/ipc'
+import type { CameraRequest, CameraStatus, Settings } from '@/shared/api/types'
 
 /**
  * Минимальная пауза между запросами кадра.

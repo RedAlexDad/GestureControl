@@ -1,0 +1,1 @@
+export { RecordSign } from './RecordSign'

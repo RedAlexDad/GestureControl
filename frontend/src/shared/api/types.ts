@@ -1,5 +1,6 @@
 /**
- * Контракт IPC: зеркало структур из `gesture-bridge` и `src-tauri`.
+ * Контракт IPC: зеркало структур из `gesture-bridge`, `src-tauri` и
+ * `gesture-vision`.
  *
  * Имена полей повторяют Rust как есть, без camelCase. Rust сериализует
  * без `rename_all`, поэтому любая переделка здесь должна начинаться с
@@ -117,24 +118,6 @@ export interface CameraStatus {
   device: string
   frames: number
   error: string | null
-}
-
-/**
- * Кадр превью: пиксели RGB24 в base64. Соответствует `camera::CameraFrame`.
- *
- * `rgb` — не data-URI: канвас ждёт сырые байты, а не строку, поэтому
- * разбор base64 живёт в `useCamera`.
- */
-export interface CameraFrame {
-  width: number
-  height: number
-  rgb: string
-}
-
-/** Статус и кадр одним ответом. Соответствует `camera::CameraFrameResult`. */
-export interface CameraFrameResult {
-  status: CameraStatus
-  frame: CameraFrame | null
 }
 
 /** Снимок движка: всё, что нужно нарисовать. */

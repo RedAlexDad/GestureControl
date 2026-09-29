@@ -7,7 +7,7 @@
  * соединять такую точку с соседней нельзя.
  */
 
-import type { PointSer } from './types'
+import type { PointSer } from '@/shared/api/types'
 
 /** Пары индексов точек, образующих кости. */
 export const BONES: readonly (readonly [number, number])[] = [

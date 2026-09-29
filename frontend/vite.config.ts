@@ -1,3 +1,5 @@
+import { fileURLToPath, URL } from 'node:url'
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -5,6 +7,14 @@ import react from '@vitejs/plugin-react'
 // иначе окно не найдёт страницу в режиме разработки.
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Слои FSD импортируют друг друга через `@`, а не по относительным
+    // путям: путь `@/features/...` одинаков из любого места и не ломается
+    // при переносе файла.
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   clearScreen: false,
   server: {
     port: 1420,

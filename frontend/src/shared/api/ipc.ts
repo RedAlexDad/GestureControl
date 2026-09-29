@@ -1,8 +1,8 @@
 /**
  * Обёртки над командами окна.
  *
- * Здесь единственное место, где живут имена команд: компоненты зовут
- * осмысленные функции и не знают строковых имён, которые имённо они.
+ * Здесь единственное место, где живут строковые имена команд: сущности и
+ * виджеты зовут осмысленные функции и не знают имён на проводе.
  */
 
 import { invoke } from '@tauri-apps/api/core'
@@ -18,7 +18,7 @@ import type {
   GetState,
   Metrics,
   Settings,
-} from './types'
+} from '@/shared/api/types'
 
 /** Событие окна: ответ на каждый разобранный кадр. */
 export const STATE_EVENT = 'gesture://state'
@@ -86,7 +86,7 @@ export function clearSigns(): Promise<AppState> {
   return invoke<AppState>('clear_signs')
 }
 
-/** Отправляет кадр: единственный вход для точек кистей. */
+/** Отправляет кадр: вход для точек кистей из интерфейса. */
 export function pushFrame(frame: FrameInput): Promise<BridgeResult> {
   return invoke<BridgeResult>('push_frame', { frame })
 }
@@ -114,8 +114,8 @@ export function cameraStatus(): Promise<CameraStatus> {
 /**
  * Последний кадр превью одним запросом.
  *
- * Ответ — двоичный пакет: ширина и высота по четыре байта, дальше пиксели
- * RGB24. Ни base64, ни JSON: интерфейс рисует пиксели сразу.
+ * Ответ — двоичный пакет: ширина и высота по четыре байта, дальше готовый
+ * RGBA. Ни base64, ни JSON: интерфейс рисует буфер как есть.
  */
 export function cameraFrame(): Promise<ArrayBuffer> {
   return invoke<ArrayBuffer>('camera_frame')
