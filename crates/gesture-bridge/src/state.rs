@@ -51,6 +51,8 @@ pub struct SignRow {
     pub hand_count: usize,
     /// Жест записан по движению, а не по позе.
     pub is_dynamic: bool,
+    /// Сколько примеров набрано: одно слово может иметь несколько жестов.
+    pub examples: usize,
 }
 
 impl From<&CustomSign> for SignRow {
@@ -61,6 +63,7 @@ impl From<&CustomSign> for SignRow {
             title: sign.title(),
             hand_count: sign.hand_count(),
             is_dynamic: !sign.sequences.is_empty(),
+            examples: sign.examples(),
         }
     }
 }
@@ -188,10 +191,12 @@ mod tests {
                 title: "Свой жест «да»".to_string(),
                 hand_count: sign.hand_count(),
                 is_dynamic: false,
+                examples: 0,
             }
         );
         sign.sequences.push(vec![vec![0.0; 4]]);
         assert!(SignRow::from(&sign).is_dynamic);
+        assert_eq!(SignRow::from(&sign).examples, 1, "пример учтён");
     }
 
     #[test]
@@ -204,6 +209,7 @@ mod tests {
                 title: "Свой жест «нет»".to_string(),
                 hand_count: 1,
                 is_dynamic: false,
+                examples: 0,
             }],
         );
         let json = serde_json::to_string(&state).expect("state serializes");

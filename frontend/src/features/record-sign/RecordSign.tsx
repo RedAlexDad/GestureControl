@@ -56,10 +56,7 @@ export function RecordSign({
           </label>
           <Chip
             disabled={busy || word.trim() === ''}
-            onClick={() => {
-              onStart(word, isDynamic)
-              setWord('')
-            }}
+            onClick={() => onStart(word, isDynamic)}
           >
             Записать
           </Chip>

@@ -76,6 +76,18 @@ fn close_samples_of_one_word_are_not_ambiguous() {
 }
 
 #[test]
+fn one_word_matches_any_of_its_gestures() {
+    let mut lib = empty_library();
+    // Одно слово показывают двумя разными жестами: каждый добавляется
+    // своим примером, и слово узнаётся по любому из них.
+    lib.add("да", vec![pose(true)]);
+    lib.add("да", vec![pose(false)]);
+    assert_eq!(lib.get(0).unwrap().samples.len(), 2);
+    assert_eq!(lib.classify_pose(&[hand(true)], 0.4).unwrap().word, "да");
+    assert_eq!(lib.classify_pose(&[hand(false)], 0.4).unwrap().word, "да");
+}
+
+#[test]
 fn classify_pose_rejects_unrelated_pose() {
     let mut lib = empty_library();
     lib.add("да", vec![pose(true)]);

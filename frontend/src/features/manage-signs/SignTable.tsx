@@ -28,6 +28,7 @@ export function SignTable({ signs, busy, onDelete, onClear }: SignTableProps) {
               <th>Слово</th>
               <th>Кистей</th>
               <th>Вид</th>
+              <th>Примеров</th>
               <th />
             </tr>
           </thead>
@@ -38,6 +39,7 @@ export function SignTable({ signs, busy, onDelete, onClear }: SignTableProps) {
                 <td>{sign.word}</td>
                 <td>{sign.hand_count}</td>
                 <td>{sign.is_dynamic ? 'движение' : 'поза'}</td>
+                <td>{sign.examples}</td>
                 <td>
                   <button
                     type="button"

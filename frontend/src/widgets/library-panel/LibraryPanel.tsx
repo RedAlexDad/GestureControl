@@ -37,6 +37,10 @@ export function LibraryPanel({
         onCancel={onCancel}
         onFinishPhrase={onFinishPhrase}
       />
+      <p className="muted">
+        Одно слово может иметь несколько жестов: запишите его ещё раз, и пример добавится к
+        слову. Распознавание примет любой из вариантов.
+      </p>
       <SignTable signs={signs} busy={busy} onDelete={onDelete} onClear={onClear} />
     </section>
   )

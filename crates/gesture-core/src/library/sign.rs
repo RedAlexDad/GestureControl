@@ -44,6 +44,14 @@ impl CustomSign {
         self.samples.is_empty() && self.sequences.is_empty()
     }
 
+    /// Сколько примеров жеста набрано для слова.
+    ///
+    /// Одно слово может показываться несколькими похожими жестами: каждый
+    /// пример добавляется к слову и сравнивается отдельно.
+    pub fn examples(&self) -> usize {
+        self.samples.len() + self.sequences.len()
+    }
+
     /// Сколько рук использовано в примерах: 1 или 2.
     pub fn hand_count(&self) -> usize {
         if let Some(first) = self.samples.first() {

@@ -148,6 +148,8 @@ export interface SignRow {
   title: string
   hand_count: number
   is_dynamic: boolean
+  /** Сколько примеров набрано: у слова может быть несколько жестов. */
+  examples: number
 }
 
 /** Экран демо-интерфейса. */
