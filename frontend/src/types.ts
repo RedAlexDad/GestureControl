@@ -73,6 +73,20 @@ export interface PreviewSettings {
 }
 
 /**
+ * Размер окна приложения. Соответствует `config::WindowSettings`.
+ *
+ * Окно собирается кодом из этих чисел, а не описанием в
+ * `tauri.conf.json`: файл конфигурации читается при сборке и переменные
+ * окружения не видит.
+ */
+export interface WindowSettings {
+  width: number
+  height: number
+  min_width: number
+  min_height: number
+}
+
+/**
  * Все настройки приложения. Соответствует `config::Settings`.
  *
  * Значения приходят из `.env` и переменных окружения, поэтому интерфейс
@@ -82,6 +96,7 @@ export interface PreviewSettings {
 export interface Settings {
   camera: CameraSettings
   preview: PreviewSettings
+  window: WindowSettings
 }
 
 /**

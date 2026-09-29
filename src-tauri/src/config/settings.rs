@@ -58,6 +58,65 @@ impl Default for PreviewSettings {
     }
 }
 
+/// Настройки окна приложения.
+///
+/// Раньше размер жил в `tauri.conf.json`, откуда его нельзя было перекрыть
+/// переменной окружения: файл собирается в момент компиляции. Теперь окно
+/// создаётся кодом и читает те же `.env` и переменные окружения, что и
+/// камера с превью.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WindowSettings {
+    /// Ширина окна в логических пикселях.
+    pub width: u32,
+    /// Высота окна в логических пикселях.
+    pub height: u32,
+    /// Минимальная ширина, до которой окно можно сжать.
+    pub min_width: u32,
+    /// Минимальная высота, до которой окно можно сжать.
+    pub min_height: u32,
+}
+
+impl Default for WindowSettings {
+    fn default() -> Self {
+        // Значения прежнего `tauri.conf.json`: окно на демо-интерфейс
+        // должно вмещать таблицу жестов и ленту кадров.
+        WindowSettings {
+            width: 1180,
+            height: 840,
+            min_width: 900,
+            min_height: 640,
+        }
+    }
+}
+
+impl WindowSettings {
+    /// Подгоняет минимальный размер под основной.
+    ///
+    /// Минимум больше окна — опечатка в `.env`, из-за которой окно не
+    /// открылось бы или сразу схлопнулось. Молча чинить нельзя: пишем
+    /// предупреждение и уменьшаем минимум до основного размера.
+    fn fit_minimum(&mut self) {
+        if self.min_width > self.width {
+            tracing::warn!(
+                "{}: {} больше ширины окна {}, беру ширину окна",
+                keys::WINDOW_MIN_WIDTH,
+                self.min_width,
+                self.width
+            );
+            self.min_width = self.width;
+        }
+        if self.min_height > self.height {
+            tracing::warn!(
+                "{}: {} больше высоты окна {}, беру высоту окна",
+                keys::WINDOW_MIN_HEIGHT,
+                self.min_height,
+                self.height
+            );
+            self.min_height = self.height;
+        }
+    }
+}
+
 /// Все настройки приложения.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
@@ -65,6 +124,8 @@ pub struct Settings {
     pub camera: CameraSettings,
     /// Превью в интерфейсе.
     pub preview: PreviewSettings,
+    /// Размер окна приложения.
+    pub window: WindowSettings,
 }
 
 impl Settings {
@@ -109,7 +170,21 @@ impl Settings {
             width: read_number(&lookup, keys::PREVIEW_WIDTH, 640),
             height: read_number(&lookup, keys::PREVIEW_HEIGHT, 480),
         };
-        Settings { camera, preview }
+        // Умолчания окна берём из одного места: четыре числа в двух
+        // списках разъедутся при первой же правке.
+        let defaults = WindowSettings::default();
+        let mut window = WindowSettings {
+            width: read_number(&lookup, keys::WINDOW_WIDTH, defaults.width),
+            height: read_number(&lookup, keys::WINDOW_HEIGHT, defaults.height),
+            min_width: read_number(&lookup, keys::WINDOW_MIN_WIDTH, defaults.min_width),
+            min_height: read_number(&lookup, keys::WINDOW_MIN_HEIGHT, defaults.min_height),
+        };
+        window.fit_minimum();
+        Settings {
+            camera,
+            preview,
+            window,
+        }
     }
 
     /// Параметры захвата для слоя зрения.
@@ -129,7 +204,11 @@ impl Settings {
     /// Строка для журнала запуска: что приложение решило использовать.
     pub fn describe(&self) -> String {
         format!(
-            "камера {} {}x{} @ {} fps, превью {}x{}",
+            "окно {}x{} (минимум {}x{}), камера {} {}x{} @ {} fps, превью {}x{}",
+            self.window.width,
+            self.window.height,
+            self.window.min_width,
+            self.window.min_height,
             self.camera.device,
             self.camera.width,
             self.camera.height,

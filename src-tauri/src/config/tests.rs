@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::{EnvFile, Settings, keys, ENV_FILE};
+use super::{EnvFile, Settings, WindowSettings, keys, ENV_FILE};
 
 /// Собирает настройки из фиксированных пар: без окружения и без файла.
 fn settings_from(pairs: &[(&str, &str)]) -> Settings {
@@ -20,6 +20,59 @@ fn defaults_capture_thirty_frames() {
     assert_eq!(settings.camera.height, 480);
     assert_eq!(settings.camera.fps, 30);
     assert_eq!(settings.preview_size(), (640, 480));
+}
+
+#[test]
+fn window_defaults_match_previous_config_file() {
+    // Числа перенесены из `tauri.conf.json`, поэтому размер окна при
+    // первом запуске после переноса не должен измениться.
+    let settings = settings_from(&[]);
+    assert_eq!(settings.window, WindowSettings::default());
+    assert_eq!(settings.window.width, 1180);
+    assert_eq!(settings.window.height, 840);
+    assert_eq!(settings.window.min_width, 900);
+    assert_eq!(settings.window.min_height, 640);
+}
+
+#[test]
+fn window_size_comes_from_source() {
+    // Размер окна перекрывается так же, как параметры камеры.
+    let settings = settings_from(&[
+        ("GESTURE_WINDOW_WIDTH", "1024"),
+        ("GESTURE_WINDOW_HEIGHT", "768"),
+        ("GESTURE_WINDOW_MIN_WIDTH", "640"),
+        ("GESTURE_WINDOW_MIN_HEIGHT", "480"),
+    ]);
+    assert_eq!(settings.window.width, 1024);
+    assert_eq!(settings.window.height, 768);
+    assert_eq!(settings.window.min_width, 640);
+    assert_eq!(settings.window.min_height, 480);
+}
+
+#[test]
+fn window_minimum_larger_than_size_is_fixed() {
+    // Минимум больше окна — опечатка: такое окно не открылось бы или сразу
+    // схлопнулось. Минимум ужимается до размера окна.
+    let settings = settings_from(&[
+        ("GESTURE_WINDOW_WIDTH", "800"),
+        ("GESTURE_WINDOW_HEIGHT", "600"),
+        ("GESTURE_WINDOW_MIN_WIDTH", "1600"),
+        ("GESTURE_WINDOW_MIN_HEIGHT", "1200"),
+    ]);
+    assert_eq!(settings.window.min_width, 800);
+    assert_eq!(settings.window.min_height, 600);
+}
+
+#[test]
+fn broken_window_numbers_fall_back_to_defaults() {
+    let settings = settings_from(&[
+        ("GESTURE_WINDOW_WIDTH", "много"),
+        ("GESTURE_WINDOW_HEIGHT", "0"),
+        ("GESTURE_WINDOW_MIN_WIDTH", ""),
+    ]);
+    assert_eq!(settings.window.width, 1180);
+    assert_eq!(settings.window.height, 840);
+    assert_eq!(settings.window.min_width, 900);
 }
 
 #[test]
@@ -118,6 +171,9 @@ fn describe_mentions_device_and_fps() {
     let text = settings_from(&[("GESTURE_CAMERA_DEVICE", "/dev/video3")]).describe();
     assert!(text.contains("/dev/video3"), "нет устройства: {text}");
     assert!(text.contains("30 fps"), "нет частоты: {text}");
+    // Размер окна тоже должен быть в журнале: иначе не видно, что окно
+    // взяло не те числа, что просил `.env`.
+    assert!(text.contains("окно 1180x840"), "нет размера окна: {text}");
 }
 
 #[test]

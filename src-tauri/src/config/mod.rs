@@ -25,7 +25,7 @@ mod settings;
 mod tests;
 
 pub use env::EnvFile;
-pub use settings::{CameraSettings, PreviewSettings, Settings};
+pub use settings::{CameraSettings, PreviewSettings, Settings, WindowSettings};
 
 /// Имя файла с настройками по умолчанию.
 const ENV_FILE: &str = ".env";
@@ -53,4 +53,12 @@ mod keys {
     pub const PREVIEW_WIDTH: &str = "GESTURE_PREVIEW_WIDTH";
     /// Высота превью в интерфейсе.
     pub const PREVIEW_HEIGHT: &str = "GESTURE_PREVIEW_HEIGHT";
+    /// Ширина окна приложения.
+    pub const WINDOW_WIDTH: &str = "GESTURE_WINDOW_WIDTH";
+    /// Высота окна приложения.
+    pub const WINDOW_HEIGHT: &str = "GESTURE_WINDOW_HEIGHT";
+    /// Минимальная ширина окна.
+    pub const WINDOW_MIN_WIDTH: &str = "GESTURE_WINDOW_MIN_WIDTH";
+    /// Минимальная высота окна.
+    pub const WINDOW_MIN_HEIGHT: &str = "GESTURE_WINDOW_MIN_HEIGHT";
 }

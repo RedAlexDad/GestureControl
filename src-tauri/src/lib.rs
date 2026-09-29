@@ -18,14 +18,20 @@ pub mod config;
 pub mod state;
 
 use gesture_bridge::GestureBridge;
-use tauri::Manager;
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::camera::CameraState;
-use crate::config::Settings;
+use crate::config::{Settings, WindowSettings};
 use crate::state::AppStateInner;
 
 /// Имя файла пользовательского словаря в каталоге данных приложения.
 const LIBRARY_FILE: &str = "signs.json";
+
+/// Метка главного окна: к ней же привязаны события и разыскивание окна.
+const MAIN_WINDOW: &str = "main";
+
+/// Заголовок окна.
+const WINDOW_TITLE: &str = "Управление жестами";
 
 /// Собирает и запускает окно приложения.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,7 +52,8 @@ pub fn run() {
             tracing::info!("словарь жестов: {}", path.display());
             // Настройки печатаем один раз при старте: по журналу видно, какие
             // значения приложение прочитало из `.env`.
-            tracing::info!("настройки: {}", Settings::global().describe());
+            let settings = Settings::global();
+            tracing::info!("настройки: {}", settings.describe());
 
             let state = AppStateInner::new(GestureBridge::with_file(path));
             if state.was_poisoned() {
@@ -56,6 +63,10 @@ pub fn run() {
             // Камера выключена при старте: устройство занимается только
             // после явной команды, чтобы окно не держало его открытым.
             app.manage(CameraState::new());
+            // Окно создаём кодом, а не описываем в `tauri.conf.json`: размер
+            // приходит из `.env` и переменных окружения, а файл конфигурации
+            // читается при сборке и переменные не видит.
+            build_window(app.handle(), settings.window)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -82,6 +93,27 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("не удалось запустить окно приложения");
+}
+
+/// Создаёт главное окно по настройкам из `.env`.
+///
+/// Размер и минимум приходят логическими пикселями: на экранах с
+/// масштабированием физический кадр будет кратнее, но интерфейс получит
+/// столько места, сколько просил.
+fn build_window(
+    app: &tauri::AppHandle,
+    window: WindowSettings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let width = f64::from(window.width);
+    let height = f64::from(window.height);
+    WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::default())
+        .title(WINDOW_TITLE)
+        .inner_size(width, height)
+        .min_inner_size(f64::from(window.min_width), f64::from(window.min_height))
+        .resizable(true)
+        .center()
+        .build()?;
+    Ok(())
 }
 
 /// Полный путь к файлу словаря, создавая каталог данных при нужде.

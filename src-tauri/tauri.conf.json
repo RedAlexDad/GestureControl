@@ -10,18 +10,6 @@
     "beforeBuildCommand": "npm --prefix ../frontend run build"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "Управление жестами",
-        "width": 1180,
-        "height": 840,
-        "minWidth": 900,
-        "minHeight": 640,
-        "resizable": true,
-        "center": true
-      }
-    ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; media-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost"
     }
