@@ -1,20 +1,9 @@
 import { useMemo, useState } from 'react'
 
-import {
-  brokenHand,
-  fist,
-  noPalmHand,
-  openPalm,
-  partialHand,
-  pointing,
-  POSE_FRAMES,
-  thumbsUp,
-  victory,
-} from './demoFrames'
 import { BONES, isVisible, TIPS } from './skeleton'
 import { useBridge } from './useBridge'
 import { useCamera } from './useCamera'
-import type { AppState, PointSer, RecordingState, Sign } from './types'
+import type { AppState, RecordingState, Sign } from './types'
 
 /** Подпись текущего жеста для показа. */
 function signLabel(sign: Sign): string {
@@ -54,7 +43,7 @@ function Hands({ state }: { state: AppState }) {
   )
 
   return (
-    <svg className="stage" viewBox="0 0 640 480" role="img" aria-label="Кадр с камеры">
+    <svg className="stage" viewBox="0 0 640 480" role="img" aria-label="Скелет демонстрационного жеста">
       <rect className="stage__back" width="640" height="480" />
       {paths.map(({ index, bones, tips, points }) => (
         <g key={index} className="skeleton">
@@ -88,14 +77,6 @@ export default function App() {
         <p>{bridge.notice ?? 'загружаю состояние окна…'}</p>
       </main>
     )
-  }
-
-  /**
-   * Отправляет позу пачкой кадров: одиночный кадр ядро не разбирает,
-   * жест появляется только после удержания позы.
-   */
-  const send = (hands: PointSer[][]) => {
-    void bridge.pushFrames(hands, POSE_FRAMES)
   }
 
   return (
@@ -180,44 +161,18 @@ export default function App() {
               </button>
             </p>
           )}
-          <Hands state={state} />
+          {state.engine.hands_visible > 0 && (
+            <>
+              <h3>Скелет кисти</h3>
+              <Hands state={state} />
+            </>
+          )}
           <p className="muted">
-            Кистей в кадре: {state.engine.hands_visible}. Камера отдаёт кадры, но распознавание
-            кистей ещё не подключено: скелет выше рисуется по кнопкам, а не по кадру. Каждая
-            кнопка шлёт пачку кадров: одиночный кадр ядро не разбирает. Ладонь — это жест
-            паузы, поэтому после неё распознавание выключается.
+            Кистей в кадре: {state.engine.hands_visible}. Точки приходят с камеры через
+            детектор: скелет выше повторяет настоящие кисти. Распознавание работает, когда
+            кисть видна целиком. Ладонь — это жест паузы, поэтому после неё распознавание
+            выключается.
           </p>
-          <div className="row">
-            <button type="button" onClick={() => send([openPalm()])}>
-              Ладонь
-            </button>
-            <button type="button" onClick={() => send([fist()])}>
-              Кулак
-            </button>
-            <button type="button" onClick={() => send([thumbsUp()])}>
-              Лайк
-            </button>
-            <button type="button" onClick={() => send([victory()])}>
-              Victory
-            </button>
-            <button type="button" onClick={() => send([pointing()])}>
-              Указательный палец
-            </button>
-          </div>
-          <div className="row">
-            <button type="button" onClick={() => send([partialHand()])}>
-              Часть точек
-            </button>
-            <button type="button" onClick={() => send([noPalmHand()])}>
-              Нет ладони
-            </button>
-            <button type="button" onClick={() => send([brokenHand()])}>
-              Сломанная кисть
-            </button>
-            <button type="button" onClick={() => void bridge.pushFrames([], 2)}>
-              Пустой кадр
-            </button>
-          </div>
         </div>
 
         <div className="panel">
