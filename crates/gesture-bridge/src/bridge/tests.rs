@@ -249,10 +249,11 @@ fn recorded_sign_survives_restart() {
             RecordingStateSer::Countdown(_)
         ));
 
-        // Обратный отсчёт, затем сама запись.
-        for time in [1.0, 4.0, 5.5] {
+        // Обратный отсчёт, затем сама запись и остановка кнопкой.
+        for time in [1.0, 4.0, 5.0] {
             bridge.ingest(&FrameInput::with_hand(time, point.clone()));
         }
+        bridge.stop_recording();
         assert_eq!(
             bridge.state().engine.recording,
             RecordingStateSer::Idle,
@@ -281,9 +282,10 @@ fn delete_by_id_removes_exactly_that_sign() {
 
     for (word, time) in [("да", 0.0), ("нет", 6.0), ("пока", 12.0)] {
         bridge.start_recording(word, false);
-        for offset in [1.0, 4.0, 5.5] {
+        for offset in [1.0, 4.0, 5.0] {
             bridge.ingest(&FrameInput::with_hand(time + offset, point.clone()));
         }
+        bridge.stop_recording();
     }
     let signs = bridge.signs();
     assert_eq!(signs.len(), 3);
@@ -308,9 +310,10 @@ fn clear_signs_empties_file_backed_library() {
     let point = hand(320.0, 240.0);
     let mut bridge = GestureBridge::with_file_and_clock(path.clone(), clock.clone());
     bridge.start_recording("да", false);
-    for offset in [1.0, 4.0, 5.5] {
+    for offset in [1.0, 4.0, 5.0] {
         bridge.ingest(&FrameInput::with_hand(offset, point.clone()));
     }
+    bridge.stop_recording();
     assert_eq!(bridge.signs().len(), 1);
 
     let state = bridge.clear_signs().expect("очистка словаря");

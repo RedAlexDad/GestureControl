@@ -82,6 +82,7 @@ pub fn run() {
             commands::tap,
             commands::finish_phrase,
             commands::start_recording,
+            commands::stop_recording,
             commands::cancel_recording,
             commands::delete_sign,
             commands::clear_signs,

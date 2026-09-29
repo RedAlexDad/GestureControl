@@ -160,6 +160,12 @@ pub fn cancel_recording(app: Shared<'_>) -> AppState {
     app.with_bridge(|bridge| bridge.cancel_recording())
 }
 
+/// Останавливает запись жеста и сохраняет его в словарь.
+#[tauri::command]
+pub fn stop_recording(app: Shared<'_>) -> AppState {
+    app.with_bridge(|bridge| bridge.stop_recording())
+}
+
 /// Удаляет жест из словаря по его идентификатору.
 #[tauri::command]
 pub fn delete_sign(app: Shared<'_>, request: DeleteSign) -> AppState {

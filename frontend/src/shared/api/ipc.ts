@@ -76,6 +76,11 @@ export function cancelRecording(): Promise<AppState> {
   return invoke<AppState>('cancel_recording')
 }
 
+/** Останавливает запись жеста и сохраняет его в словарь. */
+export function stopRecording(): Promise<AppState> {
+  return invoke<AppState>('stop_recording')
+}
+
 /** Удаляет жест из словаря по идентификатору. */
 export function deleteSign(id: string): Promise<AppState> {
   return invoke<AppState>('delete_sign', { request: { id } })

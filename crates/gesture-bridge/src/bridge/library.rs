@@ -21,6 +21,12 @@ impl GestureBridge {
         self.state()
     }
 
+    /// Останавливает запись кнопкой и сохраняет жест.
+    pub fn stop_recording(&mut self) -> AppState {
+        self.engine.stop_recording(self.frame_time());
+        self.state()
+    }
+
     /// Удаляет жест по идентификатору.
     ///
     /// Идентификатор, а не позиция: после удаления строки все позиции

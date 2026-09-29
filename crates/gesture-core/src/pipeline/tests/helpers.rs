@@ -132,7 +132,7 @@ pub(super) fn show(
 }
 
 /// Прогоняет запись слова до конца: обратный отсчёт, сбор кадров и
-/// сохранение в словарь.
+/// сохранение в словарь по кнопке остановки.
 pub(super) fn record_word(engine: &mut GestureEngine, word: &str, start: f32, hand: &HandGeometry) {
     let hands = std::slice::from_ref(hand);
     engine.begin_recording(word, false, start);
@@ -149,8 +149,9 @@ pub(super) fn record_word(engine: &mut GestureEngine, word: &str, start: f32, ha
         "запись должна начаться"
     );
 
-    // Оставшаяся длительность записи.
-    engine.process_frame(start + 5.5, hands);
+    // Собираем кадры и останавливаем запись.
+    engine.process_frame(start + 5.0, hands);
+    engine.stop_recording(start + 5.5);
     assert_eq!(
         engine.recording(),
         RecordingState::Idle,

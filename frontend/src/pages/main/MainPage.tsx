@@ -46,7 +46,9 @@ export function MainPage() {
       <LibraryPanel
         signs={state.signs}
         busy={bridge.busy}
+        recording={state.engine.recording}
         onStart={(word, isDynamic) => void bridge.startRecording(word, isDynamic)}
+        onStop={() => void bridge.stopRecording()}
         onCancel={() => void bridge.cancelRecording()}
         onFinishPhrase={() => void bridge.finishPhrase()}
         onDelete={(id) => void bridge.deleteSign(id)}

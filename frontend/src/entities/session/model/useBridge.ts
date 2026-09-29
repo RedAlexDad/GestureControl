@@ -24,6 +24,7 @@ export interface Bridge {
   finishPhrase: () => Promise<void>
   startRecording: (word: string, isDynamic: boolean) => Promise<void>
   cancelRecording: () => Promise<void>
+  stopRecording: () => Promise<void>
   deleteSign: (id: string) => Promise<void>
   clearSigns: () => Promise<void>
   dismiss: () => void
@@ -108,6 +109,7 @@ export function useBridge(): Bridge {
     finishPhrase: () => run(async () => ({ state: (await ipc.finishPhrase()).state })),
     startRecording: (word, isDynamic) => engineOnly(() => ipc.startRecording(word, isDynamic)),
     cancelRecording: () => engineOnly(() => ipc.cancelRecording()),
+    stopRecording: () => engineOnly(() => ipc.stopRecording()),
     deleteSign: (id) => engineOnly(() => ipc.deleteSign(id)),
     clearSigns: () => engineOnly(() => ipc.clearSigns()),
     dismiss: () => setNotice(null),

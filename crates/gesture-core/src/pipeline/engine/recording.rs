@@ -5,9 +5,7 @@ use crate::geometry::HandGeometry;
 use crate::models::{RecordingState, Sign};
 
 use super::super::classify::average_frames;
-use super::super::constants::{
-    MIN_MOTION_FRAMES, RECORD_COUNTDOWN, RECORD_DURATION, RECORD_LEAD_IN,
-};
+use super::super::constants::{MIN_MOTION_FRAMES, RECORD_COUNTDOWN, RECORD_LEAD_IN, RECORD_MAX};
 use super::{GestureEngine, PendingRecording};
 
 impl GestureEngine {
@@ -46,9 +44,21 @@ impl GestureEngine {
         self.recording
     }
 
-    /// Длительность записи для интерфейса.
-    pub fn record_duration(&self) -> f32 {
-        RECORD_DURATION
+    /// Останавливает запись кнопкой и сохраняет жест.
+    ///
+    /// До этого момента запись шла, пока пользователь её не остановит:
+    /// жёсткого окна в полторы секунды больше нет, зато есть запасной
+    /// предел `RECORD_MAX` на забытую запись.
+    pub fn stop_recording(&mut self, time: f32) {
+        match self.recording {
+            RecordingState::Recording(_) => self.finish_recording(time),
+            RecordingState::Countdown(_) => {
+                // Остановка во время отсчёта просто отменяет запись.
+                self.recording = RecordingState::Idle;
+                self.pending = None;
+            }
+            RecordingState::Idle => {}
+        }
     }
 
     /// Завершает запись и добавляет жест в словарь.
@@ -121,11 +131,13 @@ impl GestureEngine {
                 }
                 self.collect(time, hands);
                 let elapsed = time - self.record_started;
-                if elapsed >= RECORD_DURATION {
+                if elapsed >= RECORD_MAX {
+                    // Пользователь забыл остановить запись: сохраняем то, что
+                    // успели собрать, чтобы она не шла бесконечно.
                     self.finish_recording(time);
                 } else {
                     self.recording =
-                        RecordingState::Recording((elapsed / RECORD_DURATION).clamp(0.0, 1.0));
+                        RecordingState::Recording((elapsed / RECORD_MAX).clamp(0.0, 1.0));
                 }
                 true
             }

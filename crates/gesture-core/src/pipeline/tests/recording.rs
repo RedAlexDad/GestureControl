@@ -52,6 +52,24 @@ fn recording_aborts_when_hand_leaves() {
 }
 
 #[test]
+fn recording_waits_for_manual_stop() {
+    let mut engine = GestureEngine::new();
+    let hand = thumbs_up();
+    engine.begin_recording("слово", false, 0.0);
+    engine.process_frame(4.0, std::slice::from_ref(&hand));
+    assert!(matches!(engine.recording(), RecordingState::Recording(_)));
+
+    // Прошло больше старых полутора секунд — запись всё ещё идёт: её
+    // останавливает пользователь, а не таймер.
+    engine.process_frame(9.0, std::slice::from_ref(&hand));
+    assert!(matches!(engine.recording(), RecordingState::Recording(_)));
+
+    engine.stop_recording(9.5);
+    assert_eq!(engine.recording(), RecordingState::Idle);
+    assert_eq!(engine.library().len(), 1, "жест сохранён по кнопке");
+}
+
+#[test]
 fn recording_without_hand_does_not_start() {
     let mut engine = GestureEngine::new();
     engine.begin_recording("слово", false, 0.0);
