@@ -9,6 +9,7 @@ description = "Детектор кистей: кадр камеры → 21 то�
 
 [dependencies]
 gesture-core = { workspace = true }
+libloading = "0.8.9"
 ort = "2.0.0-rc.9"
 serde = { workspace = true }
 thiserror = { workspace = true }

@@ -8,6 +8,7 @@
 //!   RgbFrame → ладонь → рамка → кроп 256x256 → 21 точка → HandLandmarks
 //! ```
 
+pub mod mediapipe;
 mod palm;
 
 use std::path::{Path, PathBuf};
