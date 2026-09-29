@@ -1,0 +1,17 @@
+[package]
+name = "gesture-vision"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Детектор кистей: кадр камеры → 21 точка"
+
+[dependencies]
+gesture-core = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[lints.rust]
+missing_debug_implementations = "warn"

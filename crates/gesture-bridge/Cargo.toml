@@ -1,0 +1,20 @@
+[package]
+name = "gesture-bridge"
+description = "Слой между ядром жестов и интерфейсом: сериализуемое состояние и команды"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+gesture-core = { workspace = true }
+gesture-vision = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+
+[lints.rust]
+missing_debug_implementations = "warn"

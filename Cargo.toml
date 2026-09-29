@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+# `src-tauri` намеренно не член workspace: Tauri требует WebKitGTK и GTK3,
+# а их нет в базовой системе, из-за чего `cargo test` в корне перестал бы
+# собираться. У `src-tauri` собственный manifest и своя lock-файл.
+members = ["crates/gesture-bridge", "crates/gesture-core", "crates/gesture-vision"]
+default-members = [
+    "crates/gesture-bridge",
+    "crates/gesture-core",
+    "crates/gesture-vision",
+]
+exclude = ["src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/Fen1x678/sign_language_interpretation_on_camera"
+
+[workspace.dependencies]
+gesture-bridge = { path = "crates/gesture-bridge" }
+gesture-core = { path = "crates/gesture-core" }
+gesture-vision = { path = "crates/gesture-vision" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+tracing = "0.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true

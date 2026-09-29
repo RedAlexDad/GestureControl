@@ -1,0 +1,36 @@
+[package]
+name = "gesture-control"
+version = "0.1.0"
+description = "Управление интерфейсом и сурдоперевод жестами"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT"
+repository = "https://github.com/Fen1x678/sign_language_interpretation_on_camera"
+# Точка входа бинарника — `src/main.rs`, библиотечная часть — `src/lib.rs`.
+# Такая раскладка нужна для мобильных сборок и позволяет держать команды
+# в библиотеке, а не в бинарнике.
+default-run = "gesture-control"
+
+[lib]
+name = "gesture_control_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+gesture-bridge = { path = "../crates/gesture-bridge" }
+gesture-core = { path = "../crates/gesture-core" }
+gesture-vision = { path = "../crates/gesture-vision" }
+
+# `src-tauri` — самостоятельный крейт, а не член корневого workspace.
+# Пустой `[workspace]` отсоединяет его: Tauri требует WebKitGTK и GTK3,
+# которых нет в базовой системе, и их отсутствие не должно ломать
+# `cargo test` в корне.
+[workspace]
