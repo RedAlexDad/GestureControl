@@ -148,6 +148,21 @@ impl GestureBridge {
         self.clock.now()
     }
 
+    /// Время в шкале кадров: метка последнего принятого кадра.
+    ///
+    /// Команды интерфейса двигают распознавание по этой же шкале, а не по
+    /// часам окна. Иначе команда подняла бы `last_time` до значения часов
+    /// окна, и все последующие кадры отбрасывались бы как устаревшие:
+    /// запись жеста и демонстрационные кадры ломались бы после первого
+    /// нажатия. До первого кадра шкала начинается с нуля.
+    pub(crate) fn frame_time(&self) -> Seconds {
+        if self.last_time.is_finite() {
+            self.last_time
+        } else {
+            0.0
+        }
+    }
+
     pub(crate) fn wrap(&self, engine: gesture_core::EngineSnapshot) -> AppState {
         AppState::new(engine, self.signs())
     }

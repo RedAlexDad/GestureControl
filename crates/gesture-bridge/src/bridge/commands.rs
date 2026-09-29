@@ -43,8 +43,7 @@ impl GestureBridge {
     /// Номер — позиция элемента в текущем экране, а не идентификатор:
     /// список перерисовывается каждым кадром, и индекс короче для IPC.
     pub fn tap(&mut self, index: usize) -> BridgeResult {
-        let time = self.clock.now();
-        self.last_time = self.last_time.max(time);
+        let time = self.frame_time();
         let mut event = EngineEvent::default();
         self.engine.tap_index(index, time, &mut event);
         BridgeResult {
@@ -57,8 +56,7 @@ impl GestureBridge {
 
     /// Завершает накопленную фразу жестом.
     pub fn finish_phrase(&mut self) -> BridgeResult {
-        let time = self.clock.now();
-        self.last_time = self.last_time.max(time);
+        let time = self.frame_time();
         let mut event = EngineEvent::default();
         self.engine.finish_phrase(time, &mut event);
         BridgeResult {

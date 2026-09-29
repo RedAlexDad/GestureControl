@@ -10,8 +10,7 @@ use super::GestureBridge;
 impl GestureBridge {
     /// Начинает запись нового жеста.
     pub fn start_recording(&mut self, word: &str, is_dynamic: bool) -> AppState {
-        let time = self.clock.now();
-        self.last_time = self.last_time.max(time);
+        let time = self.frame_time();
         self.engine.begin_recording(word, is_dynamic, time);
         self.state()
     }

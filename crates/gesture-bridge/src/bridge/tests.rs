@@ -165,14 +165,27 @@ fn tap_out_of_range_is_harmless() {
 }
 
 #[test]
-fn tap_keeps_frame_clock_monotonic() {
-    let (mut bridge, clock) = bridge();
+fn tap_does_not_move_frame_timeline_to_window_clock() {
+    // Часы окна далеко впереди шкалы кадров: команда не должна подменять
+    // шкалу кадров, иначе следующие кадры станут «устаревшими».
+    let clock = Arc::new(ManualClock::starting_at(100.0));
+    let mut bridge = GestureBridge::with_clock(clock);
     bridge.ingest(&FrameInput::with_hand(5.0, hand(320.0, 240.0)));
     bridge.tap(0);
-    // Кадр с прежней меткой не откатывается после команды с часов.
-    let result = bridge.ingest(&FrameInput::with_hand(1.0, hand(320.0, 240.0)));
-    assert!(result.stale);
-    assert_eq!(bridge.now(), clock.current());
+    let result = bridge.ingest(&FrameInput::with_hand(5.5, hand(320.0, 240.0)));
+    assert!(!result.stale, "кадр после команды должен быть разобран");
+}
+
+#[test]
+fn start_recording_does_not_reject_later_frames() {
+    // Корень проблемы «записать жест никак»: команда брала время у часов
+    // окна, и кадры со шкалой кадров уходили в устаревшие.
+    let clock = Arc::new(ManualClock::starting_at(100.0));
+    let mut bridge = GestureBridge::with_clock(clock);
+    bridge.ingest(&FrameInput::with_hand(1.0, hand(320.0, 240.0)));
+    bridge.start_recording("да", false);
+    let result = bridge.ingest(&FrameInput::with_hand(2.0, hand(320.0, 240.0)));
+    assert!(!result.stale, "запись идёт по шкале кадров");
 }
 
 #[test]
