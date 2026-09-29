@@ -52,9 +52,16 @@ impl SignLibrary {
             {
                 continue;
             }
-            for sample in &sign.samples {
-                scored.push((HandFeatures::distance(&vector, sample), sign.id));
-            }
+            // Сравниваем слова, а не отдельные примеры: у слова берём
+            // ближайший пример. Иначе два удачных примера одного и того же
+            // жеста выглядели бы как неоднозначность между словами и жест
+            // отвергался бы.
+            let best = sign
+                .samples
+                .iter()
+                .map(|sample| HandFeatures::distance(&vector, sample))
+                .fold(f32::INFINITY, f32::min);
+            scored.push((best, sign.id));
         }
 
         // Слишком далёкие совпадения игнорируем: жест должен быть узнаваем,

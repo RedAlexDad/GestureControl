@@ -67,6 +67,15 @@ fn classify_pose_matches_learned_word() {
 }
 
 #[test]
+fn close_samples_of_one_word_are_not_ambiguous() {
+    let mut lib = empty_library();
+    // Два похожих примера одного жеста: до правки второй пример выглядел
+    // как конкурирующее слово, и жест отвергался как неоднозначный.
+    lib.add("да", vec![pose(true), pose(true)]);
+    assert_eq!(lib.classify_pose(&[hand(true)], 0.4).unwrap().word, "да");
+}
+
+#[test]
 fn classify_pose_rejects_unrelated_pose() {
     let mut lib = empty_library();
     lib.add("да", vec![pose(true)]);
