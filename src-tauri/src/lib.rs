@@ -14,12 +14,14 @@
 
 pub mod camera;
 pub mod commands;
+pub mod config;
 pub mod state;
 
 use gesture_bridge::GestureBridge;
 use tauri::Manager;
 
 use crate::camera::CameraState;
+use crate::config::Settings;
 use crate::state::AppStateInner;
 
 /// Имя файла пользовательского словаря в каталоге данных приложения.
@@ -42,6 +44,9 @@ pub fn run() {
         .setup(|app| {
             let path = library_path(app.handle())?;
             tracing::info!("словарь жестов: {}", path.display());
+            // Настройки печатаем один раз при старте: по журналу видно, какие
+            // значения приложение прочитало из `.env`.
+            tracing::info!("настройки: {}", Settings::global().describe());
 
             let state = AppStateInner::new(GestureBridge::with_file(path));
             if state.was_poisoned() {
@@ -67,6 +72,7 @@ pub fn run() {
             commands::clear_signs,
             commands::push_frame,
             commands::get_metrics,
+            commands::get_settings,
             commands::now,
             camera::start_camera,
             camera::stop_camera,

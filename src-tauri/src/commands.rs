@@ -12,10 +12,20 @@ use gesture_bridge::{AppMode, AppState, BridgeResult, FrameInput};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
+use crate::config::Settings;
 use crate::state::{publish, AppStateInner, CommandError};
 
 /// Состояние приложения, которым владеет Tauri.
 pub type Shared<'a> = State<'a, AppStateInner>;
+
+/// Настройки приложения, прочитанные из `.env` и окружения.
+///
+/// Интерфейс берёт отсюда параметры камеры и превью, чтобы не держать
+/// вторую копию тех же чисел в TypeScript.
+#[tauri::command]
+pub fn get_settings() -> Settings {
+    Settings::global().clone()
+}
 
 /// Текущее состояние: режим, фраза, запись, скины и словарь.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
