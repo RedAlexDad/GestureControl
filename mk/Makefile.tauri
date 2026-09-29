@@ -1,22 +1,43 @@
-# Makefile для Tauri
+# Tauri: dev с горячей перезагрузкой, релизная сборка и запуск.
 
-.PHONY: help dev build release test
+include $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))/colors.mk
+
+.PHONY: help dev release build info clean
 
 help:
-	@echo "Tauri:"
-	@echo "  dev     - cargo tauri dev"
-	@echo "  build   - cargo tauri build"
-	@echo "  release - cargo build --release (tauri binary)"
-	@echo "  test    - cargo test -p gesture-control --offline"
+	@printf '$(BOLD)Tauri$(RESET)\n\n'
+	@printf '  $(BOLD)dev$(RESET)      горячая перезагрузка: Rust и фронтенд\n'
+	@printf '  $(BOLD)release$(RESET)  собрать в release и сразу запустить\n'
+	@printf '  $(BOLD)build$(RESET)    собрать установщик в release\n'
+	@printf '  $(BOLD)info$(RESET)     сведения об окружении Tauri\n'
+
+# CLI лежит в node_modules фронтенда: глобальный cargo tauri не нужен.
+# Определяется при разборе файла, чтобы видеть результат make.
+TAURI := $(if $(wildcard $(TAURI_BIN)),$(TAURI_BIN),cd $(ROOT)/frontend && npx --no-install tauri)
 
 dev:
-	@cargo tauri dev
-
-build:
-	@cargo tauri build
+	$(call banner,Dev с горячей перезагрузкой)
+	$(call warn,нужен DISPLAY: окно откроется на этом компьютере)
+	$(call step,cd $(ROOT) && $(TAURI) dev,tauri dev — Rust и фронтенд пересобираются сами)
 
 release:
-	@cargo build --release --manifest-path src-tauri/Cargo.toml --offline
+	$(call banner,Релизная сборка)
+	$(call step,cd $(ROOT) && cargo build --release --manifest-path src-tauri/Cargo.toml --offline,сборка release)
+	$(call done,Бинарь собран)
+	$(call banner,Запуск)
+	@printf '$(BOLD)$(GREEN)▶$(RESET) $(APP_BIN)\n'
+	@$(APP_BIN)
 
-test:
-	@cargo test -p gesture-control --offline
+build:
+	$(call banner,Сборка установщика)
+	$(call step,cd $(ROOT) && $(TAURI) build,tauri build — .deb и .AppImage)
+	$(call done,Пакеты в src-tauri/target/release/bundle/)
+
+info:
+	$(call banner,Окружение)
+	$(call step,cd $(ROOT) && $(TAURI) info,tauri info)
+
+clean:
+	$(call banner,Очистка)
+	$(call step,rm -rf $(ROOT)/src-tauri/target/release/bundle,удаление bundle/)
+	$(call done,bundle/ удалён)

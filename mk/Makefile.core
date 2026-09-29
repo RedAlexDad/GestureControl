@@ -1,34 +1,46 @@
-# Makefile для ядра и мостов
+# Ядро, мосты и проверки качества.
 
-.PHONY: help check test build-release clippy clean
+include $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))/colors.mk
+
+.PHONY: help check typecheck test clippy fmt bench clean
 
 help:
-	@echo "Ядро и мосты:"
-	@echo "  check        - tsc, vite, cargo test, clippy (быстрые проверки)"
-	@echo "  test         - cargo test --workspace --offline"
-	@echo "  clippy       - cargo clippy --all-targets --offline"
-	@echo "  build-release- - cargo build --release (tauri)"
-	@echo "  clean        - cargo clean (осторожно)"
+	@printf '$(BOLD)Ядро и мосты$(RESET)\n\n'
+	@printf '  $(BOLD)check$(RESET)      tsc, cargo test, clippy\n'
+	@printf '  $(BOLD)typecheck$(RESET)  tsc --noEmit\n'
+	@printf '  $(BOLD)test$(RESET)       cargo test --workspace\n'
+	@printf '  $(BOLD)clippy$(RESET)     cargo clippy --all-targets\n'
+	@printf '  $(BOLD)fmt$(RESET)        cargo fmt --check\n'
+	@printf '  $(BOLD)bench$(RESET)      cargo bench\n'
+	@printf '  $(BOLD)clean$(RESET)      cargo clean\n'
 
-check:
-	@echo "▶ TypeScript check"
-	@cd frontend && npx --no-install tsc --noEmit
-	@echo "▶ Vite build check"
-	@cd frontend && npx --no-install vite build --outDir /tmp/vite-check 2>/dev/null >/dev/null && rm -rf /tmp/vite-check
-	@echo "▶ Cargo tests"
-	@cargo test --workspace --offline
-	@echo "▶ Clippy"
-	@cargo clippy --workspace --all-targets --offline
-	@echo "✓ Все проверки пройдены"
+check: typecheck test clippy
+	$(call done,Все проверки пройдены)
+
+typecheck:
+	$(call banner,TypeScript)
+	$(call step,cd $(ROOT)/frontend && npx --no-install tsc --noEmit,tsc --noEmit)
 
 test:
-	@cargo test --workspace --offline
+	$(call banner,Тесты ядра)
+	$(call step,cd $(ROOT) && cargo test --workspace --offline,cargo test --workspace)
+	$(call done,Тесты зелёные)
 
 clippy:
-	@cargo clippy --workspace --all-targets --offline
+	$(call banner,Clippy)
+	$(call step,cd $(ROOT) && cargo clippy --workspace --all-targets --offline,cargo clippy --all-targets)
+	$(call done,Clippy чист)
 
-build-release:
-	@cargo build --release --manifest-path src-tauri/Cargo.toml --offline
+fmt:
+	$(call banner,Форматирование)
+	$(call step,cd $(ROOT) && cargo fmt --all -- --check,cargo fmt --check)
+	$(call done,Форматирование верное)
+
+bench:
+	$(call banner,Бенчмарки)
+	$(call step,cd $(ROOT) && cargo bench --workspace --offline,cargo bench)
 
 clean:
-	@cargo clean
+	$(call banner,Очистка)
+	$(call step,cd $(ROOT) && cargo clean,cargo clean)
+	$(call done,Артефакты удалены)

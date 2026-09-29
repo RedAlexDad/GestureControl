@@ -1,26 +1,41 @@
-# Makefile для фронтенда
+# Фронтенд на React + TypeScript + Vite.
 
-.PHONY: help dev build lint typecheck preview
+include $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))/colors.mk
+
+.PHONY: help dev build typecheck preview install clean
 
 help:
-	@echo "Фронтенд:"
-	@echo "  dev      - npm run dev (vite)"
-	@echo "  build    - npm run build"
-	@echo "  lint     - npm run lint (если есть)"
-	@echo "  typecheck- tsc --noEmit"
-	@echo "  preview  - npm run preview"
+	@printf '$(BOLD)Фронтенд$(RESET)\n\n'
+	@printf '  $(BOLD)dev$(RESET)        dev-сервер Vite с горячей перезагрузкой\n'
+	@printf '  $(BOLD)build$(RESET)      production-сборка в dist/\n'
+	@printf '  $(BOLD)typecheck$(RESET)  tsc --noEmit\n'
+	@printf '  $(BOLD)preview$(RESET)    предпросмотр собранного dist/\n'
+	@printf '  $(BOLD)install$(RESET)    npm install\n'
+	@printf '  $(BOLD)clean$(RESET)      удалить dist/\n'
 
 dev:
-	@cd frontend && npm run dev
+	$(call banner,Dev-сервер Vite)
+	$(call step,cd $(ROOT)/frontend && npm run dev,горячая перезагрузка на http://localhost:1420)
 
 build:
-	@cd frontend && npm run build
-
-lint:
-	@cd frontend && npm run lint 2>/dev/null || echo "lint не настроен"
+	$(call banner,Сборка фронтенда)
+	$(call step,cd $(ROOT)/frontend && npm run build,tsc + vite build в dist/)
+	$(call done,dist/ готов)
 
 typecheck:
-	@cd frontend && npx --no-install tsc --noEmit
+	$(call banner,TypeScript)
+	$(call step,cd $(ROOT)/frontend && npx --no-install tsc --noEmit,tsc --noEmit)
 
 preview:
-	@cd frontend && npm run preview
+	$(call banner,Предпросмотр)
+	$(call step,cd $(ROOT)/frontend && npm run preview,локальный просмотр dist/)
+
+install:
+	$(call banner,Зависимости)
+	$(call step,cd $(ROOT)/frontend && npm install,npm install)
+	$(call done,Зависимости установлены)
+
+clean:
+	$(call banner,Очистка)
+	$(call step,rm -rf $(ROOT)/frontend/dist,удаление dist/)
+	$(call done,dist/ удалён)

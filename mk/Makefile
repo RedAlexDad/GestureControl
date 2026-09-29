@@ -1,34 +1,46 @@
-# Единый Makefile (делегирует в подфайлы)
+# Главный Makefile: сводка разделов и запуск всего.
+#
+#   make            - эта справка
+#   make dev        - горячая перезагрузка приложения
+#   make release    - релизная сборка и запуск
+#   make check      - все проверки качества
 
-.PHONY: help check test core frontend tauri clean
+include $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))/colors.mk
+
+.DEFAULT_GOAL := help
+
+.PHONY: help check typecheck test clippy fmt core frontend tauri dev release build preview clean
 
 help:
-	@echo "Gesture Control — Make targets"
-	@echo ""
-	@echo "Общие:"
-	@echo "  check     - все проверки (tsc + vite + test + clippy)"
-	@echo "  test      - cargo test --workspace --offline"
-	@echo "  clean     - cargo clean"
-	@echo ""
-	@echo "Разделы:"
-	@echo "  core      - см. mk/Makefile.core"
-	@echo "  frontend  - см. mk/Makefile.frontend"
-	@echo "  tauri     - см. mk/Makefile.tauri"
+	@printf '\n$(BOLD)$(CYAN)Управление жестами$(RESET) $(DIM)— цели make$(RESET)\n\n'
+	@printf '$(BOLD)Запуск$(RESET)\n'
+	@printf '  $(BOLD)$(MAGENTA)dev$(RESET)        горячая перезагрузка: Rust и фронтенд\n'
+	@printf '  $(BOLD)$(MAGENTA)release$(RESET)    релизная сборка и запуск бинаря\n'
+	@printf '  $(BOLD)$(MAGENTA)build$(RESET)      установщик (.deb, .AppImage)\n'
+	@printf '  $(BOLD)$(MAGENTA)preview$(RESET)    предпросмотр собранного фронтенда\n'
+	@printf '\n$(BOLD)Проверки$(RESET)\n'
+	@printf '  $(BOLD)check$(RESET)      tsc, cargo test, clippy\n'
+	@printf '  $(BOLD)typecheck$(RESET)  tsc --noEmit\n'
+	@printf '  $(BOLD)test$(RESET)       cargo test --workspace\n'
+	@printf '  $(BOLD)clippy$(RESET)     cargo clippy --all-targets\n'
+	@printf '  $(BOLD)fmt$(RESET)        cargo fmt --check\n'
+	@printf '\n$(BOLD)Разделы$(RESET) $(DIM)(свои цели: make core --help)$(RESET)\n'
+	@printf '  $(BOLD)core$(RESET)       ядро и мосты\n'
+	@printf '  $(BOLD)frontend$(RESET)   React, TypeScript, Vite\n'
+	@printf '  $(BOLD)tauri$(RESET)      десктопное окно\n'
+	@printf '\n$(BOLD)Прочее$(RESET)\n'
+	@printf '  $(BOLD)clean$(RESET)      очистка артефактов сборки\n'
+	@printf '\n$(DIM)Примеры: make check, make core test, make frontend build$(RESET)\n\n'
 
-check:
-	@$(MAKE) -f mk/Makefile.core check
+check typecheck test clippy fmt clean:
+	$(call delegate,Makefile.core)
 
-test:
-	@$(MAKE) -f mk/Makefile.core test
+dev release build:
+	$(call delegate,Makefile.tauri)
 
-clean:
-	@$(MAKE) -f mk/Makefile.core clean
+preview:
+	$(call delegate,Makefile.frontend)
 
-core:
-	@$(MAKE) -f mk/Makefile.core help
-
-frontend:
-	@$(MAKE) -f mk/Makefile.frontend help
-
-tauri:
-	@$(MAKE) -f mk/Makefile.tauri help
+# `make core` -> help раздела, `make core check` -> check раздела.
+core frontend tauri:
+	$(call section,$@)
